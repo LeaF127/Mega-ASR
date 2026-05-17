@@ -76,7 +76,7 @@ The following examples compare Mega-ASR with several representative ASR systems 
 🎧 [Listen to audio](assets/case_study/long_utterance_recovery.wav)
 
 | Model | WER | Transcript |
-|---|---:|---|
+|---|---|---|
 | Ground Truth | Reference | "To waste, I skip forty years, said the baker in tears, and proceed without further remark to the day when you took me aboard your ship to help you in hunting the snark." |
 | **Mega-ASR (Ours)** | ✅ <mark><b>5.9</b></mark> | <b>"To witness, I skip forty years, said the baker in tears, and proceed without further remark to the day when you took me aboard of your ship to help you in hunting the snark."</b> |
 | Qwen3-ASR | 🟠 **64.7** | "I skipped 40 years. Second day in here. Ever since you left, I've been a monk..." |
@@ -96,7 +96,7 @@ The following examples compare Mega-ASR with several representative ASR systems 
 🎧 [Listen to audio](assets/case_study/babble_noise_hallucination.wav)
 
 | Model | WER | Transcript |
-|---|---:|---|
+|---|---|---|
 | Ground Truth | Reference | "The friendly gang left the drug store." |
 | **Mega-ASR (Ours)** | ✅ <mark><b>8.0</b></mark> | <b>"The friendly gang left the drug store."</b> |
 | Qwen3-ASR | 🟠 **57.1** | "It's a friendly gang. That's the drug gang." |
@@ -116,7 +116,7 @@ The following examples compare Mega-ASR with several representative ASR systems 
 🎧 [Listen to audio](assets/case_study/restaurant_noise_recovery.wav)
 
 | Model | WER | Transcript |
-|---|---:|---|
+|---|---|---|
 | Ground Truth | Reference | "The set of china hit the floor with a crash." |
 | **Mega-ASR (Ours)** | ✅ <mark><b>8.0</b></mark> | <b>"The set of china hit the floor with a crash."</b> |
 | Qwen3-ASR | 🟡 **40.0** | "The bed is fine. It hit the floor with a crash." |
@@ -136,7 +136,7 @@ The following examples compare Mega-ASR with several representative ASR systems 
 🎧 [Listen to audio](assets/case_study/financial_entity_recovery.wav)
 
 | Model | WER | Transcript |
-|---|---:|---|
+|---|---|---|
 | Ground Truth | Reference | "Among export-led electrical and computer makers, Japan Victor Company fell fifty to two thousand three hundred twenty." |
 | **Mega-ASR (Ours)** | ✅ <mark><b>11.1</b></mark> | <b>"Among export-led computer makers, Japan Victor Company fell fifty to two thousand three hundred twenty."</b> |
 | Qwen3-ASR | 🟡 **38.9** | "Among export-led computer makers, Japan VictorNet sold fifty-two thousand three hundred fifty." |
@@ -156,7 +156,7 @@ The following examples compare Mega-ASR with several representative ASR systems 
 🎧 [Listen to audio](assets/case_study/phrase_recovery.wav)
 
 | Model | WER | Transcript |
-|---|---:|---|
+|---|---|---|
 | Ground Truth | Reference | "Has exposure really been reduced?" |
 | **Mega-ASR (Ours)** | ✅ <mark><b>8.0</b></mark> | <b>"Has exposure really been reduced."</b> |
 | Qwen3-ASR | 🟡 **40.0** | "Has exposure really done you?" |
