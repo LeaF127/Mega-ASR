@@ -24,22 +24,27 @@
   <img src="https://img.shields.io/badge/ASR-Robust%20Speech%20Recognition-brightgreen">
   <img src="https://img.shields.io/badge/License-Apache--2.0-green">
 </p>
+
 ## Introduction
 
-Mega-ASR is a speech recognition model designed for complex dirty speech scenarios, including noise, far-field speech, distortion, stuttering, echo, obstruction, and mixed acoustic interference. Compared with general-purpose ASR models, Mega-ASR focuses on stable recognition under medium- and high-error-rate audio conditions, achieving lower word error rates (WER) on challenging real-world speech.
+## Introduction
 
-This open-source release includes model weights, core training data, and newly constructed evaluation datasets, enabling researchers and developers to reproduce results, evaluate robustness, and advance ASR research in complex acoustic environments.
+We present Mega-ASR, an open-source speech recognition model for robust ASR under complex dirty speech conditions. Mega-ASR is designed to improve recognition stability on medium- and high-error-rate audio, including noisy, far-field, distorted, stuttering, echoic, obstructed, and mixed-interference speech.
+
+This repository contains the official implementation, model weights, core training data, and evaluation toolkit for Mega-ASR.
 
 This repository is currently under active development.
+
+
+## 🔥🔥🔥 News!!
+
+- **May 20, 2025**: 🔥 We release **Mega-ASR**. Model weights on Hugging Face are coming soon.
+- **May 20, 2025**: 🔥 We release **Voices-in-the-Wild-2M**, a benchmark for in-the-wild ASR robustness evaluation. [[Dataset]](https://huggingface.co/datasets/zhifeixie/Voices-in-the-Wild-test-v2)
+- **Coming soon**: 🔥 We will release the **DAPO-LoRA training code**.
 
 ## Highlights
 
 
-- **Dirty and general ASR support**: robust recognition for both in-the-wild dirty speech and general audio.
-- **550K-scale dirty speech corpus**: a large-scale degraded speech corpus covering noise, far-field speech, distortion, stuttering, echo, obstruction, and mixed acoustic interference.
-- **SFT + RL robustness training**: a two-stage pipeline for improving recognition stability under complex acoustic conditions.
-- **WER evaluation toolkit**: standard scripts for reproducible ASR robustness evaluation.
-- **DAPO-LoRA roadmap**: reinforcement learning training code will be released in a future update.
 
 ## Model Download
 
