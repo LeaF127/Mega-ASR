@@ -1,19 +1,13 @@
 <p align="center">
-  <img src="assets/figures/mega_asr_logo.png" alt="Mega-ASR Logo" width="220">
+  <img src="assets/figures/mega_asr_logo.png" alt="Mega-ASR Logo" width="100">
 </p>
 
-<h1 align="center">Mega-ASR: Towards In-the-Wild Speech Recognition</h1>
+<h1 align="center">Mega-ASR: Towards In-the-Wild^2 Speech Recognition</h1>
 
 <p align="center">
   <b>Robust Automatic Speech Recognition for Complex Real-World Acoustic Scenarios</b>
 </p>
 
-<p align="center">
-  <a href="https://xzf-thu.github.io/Mega-ASR/"><b>Homepage</b></a> |
-  <a href="#model-download"><b>Model Download</b></a> |
-  <a href="#installation"><b>Our Bench Download</b></a> |
-  <a href="#paper"><b>Paper</b></a> |
-</p>
 
 <p align="center">
   <a href="https://xzf-thu.github.io/Mega-ASR/">
@@ -52,119 +46,18 @@ The following examples compare Mega-ASR with several representative ASR systems 
 <summary><b>▶️ Empty Output Recovery</b></summary>
 
 <br>
+# ASR Model Comparison
 
-🎧 [Listen to audio](assets/case_study/empty_output_recovery.wav)
+下表对比了 6 个样本上各模型的转录结果。<span style="color:#22c55e">**绿色**</span>表示与 Ground Truth 一致的词，<span style="color:#ef4444">**红色**</span>表示错误/缺失/多余的词。每个单元格底部标注该模型在该样本上的 WER。
 
-| Model | WER | Transcript |
-|---|---|---|
-| Ground Truth | Reference | "...and said to him let us go and eat some honey. Whose honey? inquired Kobay cautiously. My father's, Soongoora replied. Oh, all right, I'm with you, said the tortoise eagerly, and away they went." |
-| **Mega-ASR (Ours)** | ✅ <mark><b>47.1</b></mark> | <b>"He said to him let's go and eat some honey. It's honey? he inquired very cautiously. My father is Superabundant — oh, all right, I will, he said to her eagerly, and away they went."</b> |
-| Qwen3-ASR | 🔴 **100.0** | <i>&lt;empty&gt;</i> |
-| Gemini-3-Pro | 🔴 **86.1** | "But tell me, that's how she met my father's sister. Oh, alright. I wish... I really..." |
-| Seed-ASR | 🔴 **85.3** | "My father is. Oh, all right, I wish you can." |
-| Whisper | 🔴 **92.5** | "...to him... some honey... oh yeah..." |
-
-</details>
-
----
-
-<details>
-<summary><b>▶️ Long-Utterance Semantic Recovery</b></summary>
-
-<br>
-
-🎧 [Listen to audio](assets/case_study/long_utterance_recovery.wav)
-
-| Model | WER | Transcript |
-|---|---|---|
-| Ground Truth | Reference | "To waste, I skip forty years, said the baker in tears, and proceed without further remark to the day when you took me aboard your ship to help you in hunting the snark." |
-| **Mega-ASR (Ours)** | ✅ <mark><b>5.9</b></mark> | <b>"To witness, I skip forty years, said the baker in tears, and proceed without further remark to the day when you took me aboard of your ship to help you in hunting the snark."</b> |
-| Qwen3-ASR | 🟠 **64.7** | "I skipped 40 years. Second day in here. Ever since you left, I've been a monk..." |
-| Gemini-3-Pro | 🟠 **64.7** | "I spent forty years at sea and never seen a rougher than the day that you took me aboard your ship..." |
-| Seed-ASR | 🟡 **38.2** | "To wait. I skip forty years. Saturday and years. And proceed without further remark..." |
-| Whisper | 🟠 **71.5** | "I skip forty years... to the day you took me on a ship... to hunt the shark." |
-
-</details>
-
----
-
-<details>
-<summary><b>▶️ Babble Noise & Hallucination</b></summary>
-
-<br>
-
-🎧 [Listen to audio](assets/case_study/babble_noise_hallucination.wav)
-
-| Model | WER | Transcript |
-|---|---|---|
-| Ground Truth | Reference | "The friendly gang left the drug store." |
-| **Mega-ASR (Ours)** | ✅ <mark><b>8.0</b></mark> | <b>"The friendly gang left the drug store."</b> |
-| Qwen3-ASR | 🟠 **57.1** | "It's a friendly gang. That's the drug gang." |
-| Gemini-3-Pro | 🟡 **42.9** | "Friendly gang left the drugs." |
-| Seed-ASR | 🟢 **28.6** | "The friendly gang left the drugstore." |
-| Whisper | 🟠 **62.3** | "A friendly young man left the drug store." |
-
-</details>
-
----
-
-<details>
-<summary><b>▶️ Restaurant Noise Recovery</b></summary>
-
-<br>
-
-🎧 [Listen to audio](assets/case_study/restaurant_noise_recovery.wav)
-
-| Model | WER | Transcript |
-|---|---|---|
-| Ground Truth | Reference | "The set of china hit the floor with a crash." |
-| **Mega-ASR (Ours)** | ✅ <mark><b>8.0</b></mark> | <b>"The set of china hit the floor with a crash."</b> |
-| Qwen3-ASR | 🟡 **40.0** | "The bed is fine. It hit the floor with a crash." |
-| Gemini-3-Pro | 🔴 **100.0** | "He said it's fine I hit the forward slash." |
-| Seed-ASR | 🟢 **20.0** | "The sound of china hits the floor with a crash." |
-| Whisper | 🟠 **55.0** | "The chef of China hit the floor with a clash." |
-
-</details>
-
----
-
-<details>
-<summary><b>▶️ Financial Entity Recovery</b></summary>
-
-<br>
-
-🎧 [Listen to audio](assets/case_study/financial_entity_recovery.wav)
-
-| Model | WER | Transcript |
-|---|---|---|
-| Ground Truth | Reference | "Among export-led electrical and computer makers, Japan Victor Company fell fifty to two thousand three hundred twenty." |
-| **Mega-ASR (Ours)** | ✅ <mark><b>11.1</b></mark> | <b>"Among export-led computer makers, Japan Victor Company fell fifty to two thousand three hundred twenty."</b> |
-| Qwen3-ASR | 🟡 **38.9** | "Among export-led computer makers, Japan VictorNet sold fifty-two thousand three hundred fifty." |
-| Gemini-3-Pro | 🟡 **35.7** | "Among export-led computer makers, Japan Victor Co. fell 50 to 2,350 yen." |
-| Seed-ASR | 🟠 **50.0** | "Among export-led in computer makers, Japan Victor Company sell 50 to 2300 unit." |
-| Whisper | 🟠 **66.7** | "Among exporters, computer makers in Japan victor companies sold fifty..." |
-
-</details>
-
----
-
-<details>
-<summary><b>▶️ Phrase Recovery</b></summary>
-
-<br>
-
-🎧 [Listen to audio](assets/case_study/phrase_recovery.wav)
-
-| Model | WER | Transcript |
-|---|---|---|
-| Ground Truth | Reference | "Has exposure really been reduced?" |
-| **Mega-ASR (Ours)** | ✅ <mark><b>8.0</b></mark> | <b>"Has exposure really been reduced."</b> |
-| Qwen3-ASR | 🟡 **40.0** | "Has exposure really done you?" |
-| Gemini-3-Pro | 🔴 **80.0** | "Has the closure really affected you?" |
-| Seed-ASR | 🟠 **60.0** | "Has exposure to beauty products." |
-| Whisper | 🔴 **78.5** | "Have those who really been refused?" |
-
-</details>
+| Audio | Ground Truth | Mega-ASR (Ours) | Qwen3-ASR | Gemini-3-Pro | Seed-ASR | Whisper |
+|---|---|---|---|---|---|---|
+| <video src="assets/case_study/empty_output_recovery.mp4" controls width="240"></video> | ...and said to him let us go and eat some honey. Whose honey? inquired Kobay cautiously. My father's, Soongoora replied. Oh, all right, I'm with you, said the tortoise eagerly, and away they went.<br><br>*Reference* | <span style="color:#ef4444">He</span> said to him <span style="color:#ef4444">let's</span> go and eat some honey. <span style="color:#ef4444">It's</span> honey? inquired <span style="color:#ef4444">very</span> cautiously. My father <span style="color:#ef4444">is Superabundant</span> — oh, all right, <span style="color:#ef4444">I will</span>, said <span style="color:#ef4444">to her</span> eagerly, and away they went.<br><br>**WER: <span style="color:#22c55e">47.1</span> ✅** | <span style="color:#ef4444">&lt;empty&gt;</span><br><br>**WER: <span style="color:#ef4444">100.0</span> 🔴** | <span style="color:#ef4444">But tell me, that's how she met</span> my father<span style="color:#ef4444">'s sister</span>. Oh, all right. <span style="color:#ef4444">I wish... I really...</span><br><br>**WER: <span style="color:#ef4444">86.1</span> 🔴** | My father <span style="color:#ef4444">is</span>. Oh, all right, <span style="color:#ef4444">I wish you can</span>.<br><br>**WER: <span style="color:#ef4444">85.3</span> 🔴** | ...to him... some honey... <span style="color:#ef4444">oh yeah</span>...<br><br>**WER: <span style="color:#ef4444">92.5</span> 🔴** |
+| <video src="assets/case_study/long_utterance_recovery.mp4" controls width="240"></video> | To waste, I skip forty years, said the baker in tears, and proceed without further remark to the day when you took me aboard your ship to help you in hunting the snark.<br><br>*Reference* | <span style="color:#ef4444">To witness,</span> I skip forty years, said the baker in tears, and proceed without further remark to the day when you took me aboard <span style="color:#ef4444">of</span> your ship to help you in hunting the snark.<br><br>**WER: <span style="color:#22c55e">5.9</span> ✅** | <span style="color:#ef4444">I skipped 40 years. Second day in here. Ever since you left, I've been a monk...</span><br><br>**WER: <span style="color:#ef4444">64.7</span> 🟠** | <span style="color:#ef4444">I spent forty years at sea and never seen a rougher than</span> the day <span style="color:#ef4444">that</span> you took me aboard your ship...<br><br>**WER: <span style="color:#ef4444">64.7</span> 🟠** | <span style="color:#ef4444">To wait.</span> I skip forty years. <span style="color:#ef4444">Saturday and years.</span> And proceed without further remark...<br><br>**WER: <span style="color:#ef4444">38.2</span> 🟡** | I skip forty years... to the day you took me <span style="color:#ef4444">on a ship</span>... to hunt the <span style="color:#ef4444">shark</span>.<br><br>**WER: <span style="color:#ef4444">71.5</span> 🟠** |
+| <video src="assets/case_study/babble_noise_hallucination.mp4" controls width="240"></video> | The friendly gang left the drug store.<br><br>*Reference* | <span style="color:#22c55e">The friendly gang left the drug store.</span><br><br>**WER: <span style="color:#22c55e">8.0</span> ✅** | <span style="color:#ef4444">It's a</span> friendly gang. <span style="color:#ef4444">That's the drug gang.</span><br><br>**WER: <span style="color:#ef4444">57.1</span> 🟠** | <span style="color:#ef4444">Friendly</span> gang left the <span style="color:#ef4444">drugs</span>.<br><br>**WER: <span style="color:#ef4444">42.9</span> 🟡** | The friendly gang left the <span style="color:#ef4444">drugstore</span>.<br><br>**WER: <span style="color:#22c55e">28.6</span> 🟢** | <span style="color:#ef4444">A</span> friendly <span style="color:#ef4444">young man</span> left the drug store.<br><br>**WER: <span style="color:#ef4444">62.3</span> 🟠** |
+| <video src="assets/case_study/restaurant_noise_recovery.mp4" controls width="240"></video> | The set of china hit the floor with a crash.<br><br>*Reference* | <span style="color:#22c55e">The set of china hit the floor with a crash.</span><br><br>**WER: <span style="color:#22c55e">8.0</span> ✅** | The <span style="color:#ef4444">bed is fine. It</span> hit the floor with a crash.<br><br>**WER: <span style="color:#ef4444">40.0</span> 🟡** | <span style="color:#ef4444">He said it's fine I</span> hit the <span style="color:#ef4444">forward slash</span>.<br><br>**WER: <span style="color:#ef4444">100.0</span> 🔴** | The <span style="color:#ef4444">sound</span> of china <span style="color:#ef4444">hits</span> the floor with a crash.<br><br>**WER: <span style="color:#22c55e">20.0</span> 🟢** | The <span style="color:#ef4444">chef</span> of <span style="color:#ef4444">China</span> hit the floor with a <span style="color:#ef4444">clash</span>.<br><br>**WER: <span style="color:#ef4444">55.0</span> 🟠** |
+| <video src="assets/case_study/financial_entity_recovery.mp4" controls width="240"></video> | Among export-led electrical and computer makers, Japan Victor Company fell fifty to two thousand three hundred twenty.<br><br>*Reference* | Among export-led <span style="color:#ef4444">(missing: electrical and)</span> computer makers, Japan Victor Company fell fifty to two thousand three hundred twenty.<br><br>**WER: <span style="color:#22c55e">11.1</span> ✅** | Among export-led <span style="color:#ef4444">(missing: electrical and)</span> computer makers, Japan <span style="color:#ef4444">VictorNet sold fifty-two thousand three hundred fifty</span>.<br><br>**WER: <span style="color:#ef4444">38.9</span> 🟡** | Among export-led <span style="color:#ef4444">(missing: electrical and)</span> computer makers, Japan Victor <span style="color:#ef4444">Co.</span> fell <span style="color:#ef4444">50</span> to <span style="color:#ef4444">2,350 yen</span>.<br><br>**WER: <span style="color:#ef4444">35.7</span> 🟡** | Among export-led <span style="color:#ef4444">in</span> computer makers, Japan Victor Company <span style="color:#ef4444">sell 50 to 2300 unit</span>.<br><br>**WER: <span style="color:#ef4444">50.0</span> 🟠** | Among <span style="color:#ef4444">exporters,</span> computer makers <span style="color:#ef4444">in Japan victor companies sold</span> fifty...<br><br>**WER: <span style="color:#ef4444">66.7</span> 🟠** |
+| <video src="assets/case_study/phrase_recovery.mp4" controls width="240"></video> | Has exposure really been reduced?<br><br>*Reference* | <span style="color:#22c55e">Has exposure really been reduced</span><span style="color:#ef4444">.</span><br><br>**WER: <span style="color:#22c55e">8.0</span> ✅** | Has exposure really <span style="color:#ef4444">done you?</span><br><br>**WER: <span style="color:#ef4444">40.0</span> 🟡** | Has <span style="color:#ef4444">the closure</span> really <span style="color:#ef4444">affected you?</span><br><br>**WER: <span style="color:#ef4444">80.0</span> 🔴** | Has exposure <span style="color:#ef4444">to beauty products.</span><br><br>**WER: <span style="color:#ef4444">60.0</span> 🟠** | <span style="color:#ef4444">Have those who</span> really <span style="color:#ef4444">been refused?</span><br><br>**WER: <span style="color:#ef4444">78.5</span> 🔴** |
 
 ## 🔥🔥🔥 News!!
 
