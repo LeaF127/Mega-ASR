@@ -37,26 +37,146 @@ We introduce **MEGA-ASR**, the first foundation ASR model to target **full-scena
 <p align="center">
   <img src="/docs/assets/dataset.png" alt="Mega-ASR Logo" width="100%">
 </p>
-
-
 ### Comparson with SOTA open-source and closed-source models.
 
-| Audio | Ground Truth | Mega-ASR (Ours) | Qwen3-ASR | Gemini-3-Pro | Seed-ASR | Whisper |
-|---|---|---|---|---|---|---|
-| <video src="https://private-user-images.githubusercontent.com/201621992/594835233-2d847f22-a6d4-4d84-9bec-79a39001f9ca.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzkyMDU0NDYsIm5iZiI6MTc3OTIwNTE0NiwicGF0aCI6Ii8yMDE2MjE5OTIvNTk0ODM1MjMzLTJkODQ3ZjIyLWE2ZDQtNGQ4NC05YmVjLTc5YTM5MDAxZjljYS5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwNTE5JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDUxOVQxNTM5MDZaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1mODgyYWRlZGI3OThjZWZmNzg1ZDhmNDRiNDMxZjYzZmE0Njk5OWJjYWJkZTVhZmM0OTM0OTI4MWI3ZmEzMGI0JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9dmlkZW8lMkZtcDQifQ.qJS-ALDMknvRYFY73hGYmJ-WLzwtC4LRHJnHXlkpyyU" controls width="440"></video> | ...and said to him let us go and eat some honey. Whose honey? inquired Kobay cautiously. My father's, Soongoora replied. Oh, all right, I'm with you, said the tortoise eagerly, and away they went.<br><br>*Reference* | <span style="color:#ef4444">He</span> said to him <span style="color:#ef4444">let's</span> go and eat some honey. <span style="color:#ef4444">It's</span> honey? inquired <span style="color:#ef4444">very</span> cautiously. My father <span style="color:#ef4444">is Superabundant</span> — oh, all right, <span style="color:#ef4444">I will</span>, said <span style="color:#ef4444">to her</span> eagerly, and away they went.<br><br>**WER: <span style="color:#22c55e">47.1</span> ✅** | <span style="color:#ef4444">&lt;empty&gt;</span><br><br>**WER: <span style="color:#ef4444">100.0</span> 🔴** | <span style="color:#ef4444">But tell me, that's how she met</span> my father<span style="color:#ef4444">'s sister</span>. Oh, all right. <span style="color:#ef4444">I wish... I really...</span><br><br>**WER: <span style="color:#ef4444">86.1</span> 🔴** | My father <span style="color:#ef4444">is</span>. Oh, all right, <span style="color:#ef4444">I wish you can</span>.<br><br>**WER: <span style="color:#ef4444">85.3</span> 🔴** | ...to him... some honey... <span style="color:#ef4444">oh yeah</span>...<br><br>**WER: <span style="color:#ef4444">92.5</span> 🔴** |
-| <video src="https://private-user-images.githubusercontent.com/201621992/594835233-2d847f22-a6d4-4d84-9bec-79a39001f9ca.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzkyMDU0NDYsIm5iZiI6MTc3OTIwNTE0NiwicGF0aCI6Ii8yMDE2MjE5OTIvNTk0ODM1MjMzLTJkODQ3ZjIyLWE2ZDQtNGQ4NC05YmVjLTc5YTM5MDAxZjljYS5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwNTE5JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDUxOVQxNTM5MDZaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1mODgyYWRlZGI3OThjZWZmNzg1ZDhmNDRiNDMxZjYzZmE0Njk5OWJjYWJkZTVhZmM0OTM0OTI4MWI3ZmEzMGI0JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9dmlkZW8lMkZtcDQifQ.qJS-ALDMknvRYFY73hGYmJ-WLzwtC4LRHJnHXlkpyyU" controls width="240"></video> | To waste, I skip forty years, said the baker in tears, and proceed without further remark to the day when you took me aboard your ship to help you in hunting the snark.<br><br>*Reference* | <span style="color:#ef4444">To witness,</span> I skip forty years, said the baker in tears, and proceed without further remark to the day when you took me aboard <span style="color:#ef4444">of</span> your ship to help you in hunting the snark.<br><br>**WER: <span style="color:#22c55e">5.9</span> ✅** | <span style="color:#ef4444">I skipped 40 years. Second day in here. Ever since you left, I've been a monk...</span><br><br>**WER: <span style="color:#ef4444">64.7</span> 🟠** | <span style="color:#ef4444">I spent forty years at sea and never seen a rougher than</span> the day <span style="color:#ef4444">that</span> you took me aboard your ship...<br><br>**WER: <span style="color:#ef4444">64.7</span> 🟠** | <span style="color:#ef4444">To wait.</span> I skip forty years. <span style="color:#ef4444">Saturday and years.</span> And proceed without further remark...<br><br>**WER: <span style="color:#ef4444">38.2</span> 🟡** | I skip forty years... to the day you took me <span style="color:#ef4444">on a ship</span>... to hunt the <span style="color:#ef4444">shark</span>.<br><br>**WER: <span style="color:#ef4444">71.5</span> 🟠** |
+#### Sample 1
+
+<table>
+  <tr>
+    <td width="42%" valign="top">
+      <video width="480" src="https://private-user-images.githubusercontent.com/201621992/594835233-2d847f22-a6d4-4d84-9bec-79a39001f9ca.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzkyMDU0NDYsIm5iZiI6MTc3OTIwNTE0NiwicGF0aCI6Ii8yMDE2MjE5OTIvNTk0ODM1MjMzLTJkODQ3ZjIyLWE2ZDQtNGQ4NC05YmVjLTc5YTM5MDAxZjljYS5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwNTE5JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDUxOVQxNTM5MDZaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1mODgyYWRlZGI3OThjZWZmNzg1ZDhmNDRiNDMxZjYzZmE0Njk5OWJjYWJkZTVhZmM0OTM0OTI4MWI3ZmEzMGI0JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9dmlkZW8lMkZtcDQifQ.qJS-ALDMknvRYFY73hGYmJ-WLzwtC4LRHJnHXlkpyyU" controls></video>
+    </td>
+    <td width="58%" valign="top">
+      <strong>Ground Truth</strong><br><br>
+      ...and said to him let us go and eat some honey. Whose honey? inquired Kobay cautiously. My father's, Soongoora replied. Oh, all right, I'm with you, said the tortoise eagerly, and away they went.<br><br><em>Reference</em>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
+      <table>
+        <tr><th valign="top">Mega-ASR (Ours)</th><th valign="top">Qwen3-ASR</th><th valign="top">Gemini-3-Pro</th><th valign="top">Seed-ASR</th><th valign="top">Whisper</th></tr>
+        <tr><td valign="top"><span style="color:#ef4444">He</span> said to him <span style="color:#ef4444">let's</span> go and eat some honey. <span style="color:#ef4444">It's</span> honey? inquired <span style="color:#ef4444">very</span> cautiously. My father <span style="color:#ef4444">is Superabundant</span> — oh, all right, <span style="color:#ef4444">I will</span>, said <span style="color:#ef4444">to her</span> eagerly, and away they went.<br><br><strong>WER: <span style="color:#22c55e">47.1</span> ✅</strong></td><td valign="top"><span style="color:#ef4444">&lt;empty&gt;</span><br><br><strong>WER: <span style="color:#ef4444">100.0</span> 🔴</strong></td><td valign="top"><span style="color:#ef4444">But tell me, that's how she met</span> my father<span style="color:#ef4444">'s sister</span>. Oh, all right. <span style="color:#ef4444">I wish... I really...</span><br><br><strong>WER: <span style="color:#ef4444">86.1</span> 🔴</strong></td><td valign="top">My father <span style="color:#ef4444">is</span>. Oh, all right, <span style="color:#ef4444">I wish you can</span>.<br><br><strong>WER: <span style="color:#ef4444">85.3</span> 🔴</strong></td><td valign="top">...to him... some honey... <span style="color:#ef4444">oh yeah</span>...<br><br><strong>WER: <span style="color:#ef4444">92.5</span> 🔴</strong></td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+#### Sample 2
+
+<table>
+  <tr>
+    <td width="42%" valign="top">
+      <video width="480" src="https://private-user-images.githubusercontent.com/201621992/594835233-2d847f22-a6d4-4d84-9bec-79a39001f9ca.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzkyMDU0NDYsIm5iZiI6MTc3OTIwNTE0NiwicGF0aCI6Ii8yMDE2MjE5OTIvNTk0ODM1MjMzLTJkODQ3ZjIyLWE2ZDQtNGQ4NC05YmVjLTc5YTM5MDAxZjljYS5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwNTE5JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDUxOVQxNTM5MDZaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1mODgyYWRlZGI3OThjZWZmNzg1ZDhmNDRiNDMxZjYzZmE0Njk5OWJjYWJkZTVhZmM0OTM0OTI4MWI3ZmEzMGI0JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9dmlkZW8lMkZtcDQifQ.qJS-ALDMknvRYFY73hGYmJ-WLzwtC4LRHJnHXlkpyyU" controls></video>
+    </td>
+    <td width="58%" valign="top">
+      <strong>Ground Truth</strong><br><br>
+      To waste, I skip forty years, said the baker in tears, and proceed without further remark to the day when you took me aboard your ship to help you in hunting the snark.<br><br><em>Reference</em>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
+      <table>
+        <tr><th valign="top">Mega-ASR (Ours)</th><th valign="top">Qwen3-ASR</th><th valign="top">Gemini-3-Pro</th><th valign="top">Seed-ASR</th><th valign="top">Whisper</th></tr>
+        <tr><td valign="top"><span style="color:#ef4444">To witness,</span> I skip forty years, said the baker in tears, and proceed without further remark to the day when you took me aboard <span style="color:#ef4444">of</span> your ship to help you in hunting the snark.<br><br><strong>WER: <span style="color:#22c55e">5.9</span> ✅</strong></td><td valign="top"><span style="color:#ef4444">I skipped 40 years. Second day in here. Ever since you left, I've been a monk...</span><br><br><strong>WER: <span style="color:#ef4444">64.7</span> 🟠</strong></td><td valign="top"><span style="color:#ef4444">I spent forty years at sea and never seen a rougher than</span> the day <span style="color:#ef4444">that</span> you took me aboard your ship...<br><br><strong>WER: <span style="color:#ef4444">64.7</span> 🟠</strong></td><td valign="top"><span style="color:#ef4444">To wait.</span> I skip forty years. <span style="color:#ef4444">Saturday and years.</span> And proceed without further remark...<br><br><strong>WER: <span style="color:#ef4444">38.2</span> 🟡</strong></td><td valign="top">I skip forty years... to the day you took me <span style="color:#ef4444">on a ship</span>... to hunt the <span style="color:#ef4444">shark</span>.<br><br><strong>WER: <span style="color:#ef4444">71.5</span> 🟠</strong></td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
 
 <details>
 <summary>More examples</summary>
 
-| Audio | Ground Truth | Mega-ASR (Ours) | Qwen3-ASR | Gemini-3-Pro | Seed-ASR | Whisper |
-|---|---|---|---|---|---|---|
-| <video src="https://private-user-images.githubusercontent.com/201621992/594835233-2d847f22-a6d4-4d84-9bec-79a39001f9ca.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzkyMDU0NDYsIm5iZiI6MTc3OTIwNTE0NiwicGF0aCI6Ii8yMDE2MjE5OTIvNTk0ODM1MjMzLTJkODQ3ZjIyLWE2ZDQtNGQ4NC05YmVjLTc5YTM5MDAxZjljYS5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwNTE5JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDUxOVQxNTM5MDZaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1mODgyYWRlZGI3OThjZWZmNzg1ZDhmNDRiNDMxZjYzZmE0Njk5OWJjYWJkZTVhZmM0OTM0OTI4MWI3ZmEzMGI0JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9dmlkZW8lMkZtcDQifQ.qJS-ALDMknvRYFY73hGYmJ-WLzwtC4LRHJnHXlkpyyU" controls width="240"></video> | The friendly gang left the drug store.<br><br>*Reference* | <span style="color:#22c55e">The friendly gang left the drug store.</span><br><br>**WER: <span style="color:#22c55e">8.0</span> ✅** | <span style="color:#ef4444">It's a</span> friendly gang. <span style="color:#ef4444">That's the drug gang.</span><br><br>**WER: <span style="color:#ef4444">57.1</span> 🟠** | <span style="color:#ef4444">Friendly</span> gang left the <span style="color:#ef4444">drugs</span>.<br><br>**WER: <span style="color:#ef4444">42.9</span> 🟡** | The friendly gang left the <span style="color:#ef4444">drugstore</span>.<br><br>**WER: <span style="color:#22c55e">28.6</span> 🟢** | <span style="color:#ef4444">A</span> friendly <span style="color:#ef4444">young man</span> left the drug store.<br><br>**WER: <span style="color:#ef4444">62.3</span> 🟠** |
-| <video src="https://private-user-images.githubusercontent.com/201621992/594835233-2d847f22-a6d4-4d84-9bec-79a39001f9ca.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzkyMDU0NDYsIm5iZiI6MTc3OTIwNTE0NiwicGF0aCI6Ii8yMDE2MjE5OTIvNTk0ODM1MjMzLTJkODQ3ZjIyLWE2ZDQtNGQ4NC05YmVjLTc5YTM5MDAxZjljYS5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwNTE5JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDUxOVQxNTM5MDZaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1mODgyYWRlZGI3OThjZWZmNzg1ZDhmNDRiNDMxZjYzZmE0Njk5OWJjYWJkZTVhZmM0OTM0OTI4MWI3ZmEzMGI0JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9dmlkZW8lMkZtcDQifQ.qJS-ALDMknvRYFY73hGYmJ-WLzwtC4LRHJnHXlkpyyU" controls width="240"></video> | The set of china hit the floor with a crash.<br><br>*Reference* | <span style="color:#22c55e">The set of china hit the floor with a crash.</span><br><br>**WER: <span style="color:#22c55e">8.0</span> ✅** | The <span style="color:#ef4444">bed is fine. It</span> hit the floor with a crash.<br><br>**WER: <span style="color:#ef4444">40.0</span> 🟡** | <span style="color:#ef4444">He said it's fine I</span> hit the <span style="color:#ef4444">forward slash</span>.<br><br>**WER: <span style="color:#ef4444">100.0</span> 🔴** | The <span style="color:#ef4444">sound</span> of china <span style="color:#ef4444">hits</span> the floor with a crash.<br><br>**WER: <span style="color:#22c55e">20.0</span> 🟢** | The <span style="color:#ef4444">chef</span> of <span style="color:#ef4444">China</span> hit the floor with a <span style="color:#ef4444">clash</span>.<br><br>**WER: <span style="color:#ef4444">55.0</span> 🟠** |
-| <video src="https://private-user-images.githubusercontent.com/201621992/594835233-2d847f22-a6d4-4d84-9bec-79a39001f9ca.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzkyMDU0NDYsIm5iZiI6MTc3OTIwNTE0NiwicGF0aCI6Ii8yMDE2MjE5OTIvNTk0ODM1MjMzLTJkODQ3ZjIyLWE2ZDQtNGQ4NC05YmVjLTc5YTM5MDAxZjljYS5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwNTE5JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDUxOVQxNTM5MDZaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1mODgyYWRlZGI3OThjZWZmNzg1ZDhmNDRiNDMxZjYzZmE0Njk5OWJjYWJkZTVhZmM0OTM0OTI4MWI3ZmEzMGI0JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9dmlkZW8lMkZtcDQifQ.qJS-ALDMknvRYFY73hGYmJ-WLzwtC4LRHJnHXlkpyyU" controls width="240"></video> | Among export-led electrical and computer makers, Japan Victor Company fell fifty to two thousand three hundred twenty.<br><br>*Reference* | Among export-led <span style="color:#ef4444">(missing: electrical and)</span> computer makers, Japan Victor Company fell fifty to two thousand three hundred twenty.<br><br>**WER: <span style="color:#22c55e">11.1</span> ✅** | Among export-led <span style="color:#ef4444">(missing: electrical and)</span> computer makers, Japan <span style="color:#ef4444">VictorNet sold fifty-two thousand three hundred fifty</span>.<br><br>**WER: <span style="color:#ef4444">38.9</span> 🟡** | Among export-led <span style="color:#ef4444">(missing: electrical and)</span> computer makers, Japan Victor <span style="color:#ef4444">Co.</span> fell <span style="color:#ef4444">50</span> to <span style="color:#ef4444">2,350 yen</span>.<br><br>**WER: <span style="color:#ef4444">35.7</span> 🟡** | Among export-led <span style="color:#ef4444">in</span> computer makers, Japan Victor Company <span style="color:#ef4444">sell 50 to 2300 unit</span>.<br><br>**WER: <span style="color:#ef4444">50.0</span> 🟠** | Among <span style="color:#ef4444">exporters,</span> computer makers <span style="color:#ef4444">in Japan victor companies sold</span> fifty...<br><br>**WER: <span style="color:#ef4444">66.7</span> 🟠** |
-| <video src="https://private-user-images.githubusercontent.com/201621992/594835233-2d847f22-a6d4-4d84-9bec-79a39001f9ca.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzkyMDU0NDYsIm5iZiI6MTc3OTIwNTE0NiwicGF0aCI6Ii8yMDE2MjE5OTIvNTk0ODM1MjMzLTJkODQ3ZjIyLWE2ZDQtNGQ4NC05YmVjLTc5YTM5MDAxZjljYS5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwNTE5JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDUxOVQxNTM5MDZaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1mODgyYWRlZGI3OThjZWZmNzg1ZDhmNDRiNDMxZjYzZmE0Njk5OWJjYWJkZTVhZmM0OTM0OTI4MWI3ZmEzMGI0JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9dmlkZW8lMkZtcDQifQ.qJS-ALDMknvRYFY73hGYmJ-WLzwtC4LRHJnHXlkpyyU" controls width="240"></video> | Has exposure really been reduced?<br><br>*Reference* | <span style="color:#22c55e">Has exposure really been reduced</span><span style="color:#ef4444">.</span><br><br>**WER: <span style="color:#22c55e">8.0</span> ✅** | Has exposure really <span style="color:#ef4444">done you?</span><br><br>**WER: <span style="color:#ef4444">40.0</span> 🟡** | Has <span style="color:#ef4444">the closure</span> really <span style="color:#ef4444">affected you?</span><br><br>**WER: <span style="color:#ef4444">80.0</span> 🔴** | Has exposure <span style="color:#ef4444">to beauty products.</span><br><br>**WER: <span style="color:#ef4444">60.0</span> 🟠** | <span style="color:#ef4444">Have those who</span> really <span style="color:#ef4444">been refused?</span><br><br>**WER: <span style="color:#ef4444">78.5</span> 🔴** |
+#### Sample 3
+
+<table>
+  <tr>
+    <td width="42%" valign="top">
+      <video width="480" src="https://private-user-images.githubusercontent.com/201621992/594835233-2d847f22-a6d4-4d84-9bec-79a39001f9ca.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzkyMDU0NDYsIm5iZiI6MTc3OTIwNTE0NiwicGF0aCI6Ii8yMDE2MjE5OTIvNTk0ODM1MjMzLTJkODQ3ZjIyLWE2ZDQtNGQ4NC05YmVjLTc5YTM5MDAxZjljYS5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwNTE5JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDUxOVQxNTM5MDZaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1mODgyYWRlZGI3OThjZWZmNzg1ZDhmNDRiNDMxZjYzZmE0Njk5OWJjYWJkZTVhZmM0OTM0OTI4MWI3ZmEzMGI0JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9dmlkZW8lMkZtcDQifQ.qJS-ALDMknvRYFY73hGYmJ-WLzwtC4LRHJnHXlkpyyU" controls></video>
+    </td>
+    <td width="58%" valign="top">
+      <strong>Ground Truth</strong><br><br>
+      The friendly gang left the drug store.<br><br><em>Reference</em>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
+      <table>
+        <tr><th valign="top">Mega-ASR (Ours)</th><th valign="top">Qwen3-ASR</th><th valign="top">Gemini-3-Pro</th><th valign="top">Seed-ASR</th><th valign="top">Whisper</th></tr>
+        <tr><td valign="top"><span style="color:#22c55e">The friendly gang left the drug store.</span><br><br><strong>WER: <span style="color:#22c55e">8.0</span> ✅</strong></td><td valign="top"><span style="color:#ef4444">It's a</span> friendly gang. <span style="color:#ef4444">That's the drug gang.</span><br><br><strong>WER: <span style="color:#ef4444">57.1</span> 🟠</strong></td><td valign="top"><span style="color:#ef4444">Friendly</span> gang left the <span style="color:#ef4444">drugs</span>.<br><br><strong>WER: <span style="color:#ef4444">42.9</span> 🟡</strong></td><td valign="top">The friendly gang left the <span style="color:#ef4444">drugstore</span>.<br><br><strong>WER: <span style="color:#22c55e">28.6</span> 🟢</strong></td><td valign="top"><span style="color:#ef4444">A</span> friendly <span style="color:#ef4444">young man</span> left the drug store.<br><br><strong>WER: <span style="color:#ef4444">62.3</span> 🟠</strong></td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+#### Sample 4
+
+<table>
+  <tr>
+    <td width="42%" valign="top">
+      <video width="480" src="https://private-user-images.githubusercontent.com/201621992/594835233-2d847f22-a6d4-4d84-9bec-79a39001f9ca.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzkyMDU0NDYsIm5iZiI6MTc3OTIwNTE0NiwicGF0aCI6Ii8yMDE2MjE5OTIvNTk0ODM1MjMzLTJkODQ3ZjIyLWE2ZDQtNGQ4NC05YmVjLTc5YTM5MDAxZjljYS5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwNTE5JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDUxOVQxNTM5MDZaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1mODgyYWRlZGI3OThjZWZmNzg1ZDhmNDRiNDMxZjYzZmE0Njk5OWJjYWJkZTVhZmM0OTM0OTI4MWI3ZmEzMGI0JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9dmlkZW8lMkZtcDQifQ.qJS-ALDMknvRYFY73hGYmJ-WLzwtC4LRHJnHXlkpyyU" controls></video>
+    </td>
+    <td width="58%" valign="top">
+      <strong>Ground Truth</strong><br><br>
+      The set of china hit the floor with a crash.<br><br><em>Reference</em>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
+      <table>
+        <tr><th valign="top">Mega-ASR (Ours)</th><th valign="top">Qwen3-ASR</th><th valign="top">Gemini-3-Pro</th><th valign="top">Seed-ASR</th><th valign="top">Whisper</th></tr>
+        <tr><td valign="top"><span style="color:#22c55e">The set of china hit the floor with a crash.</span><br><br><strong>WER: <span style="color:#22c55e">8.0</span> ✅</strong></td><td valign="top">The <span style="color:#ef4444">bed is fine. It</span> hit the floor with a crash.<br><br><strong>WER: <span style="color:#ef4444">40.0</span> 🟡</strong></td><td valign="top"><span style="color:#ef4444">He said it's fine I</span> hit the <span style="color:#ef4444">forward slash</span>.<br><br><strong>WER: <span style="color:#ef4444">100.0</span> 🔴</strong></td><td valign="top">The <span style="color:#ef4444">sound</span> of china <span style="color:#ef4444">hits</span> the floor with a crash.<br><br><strong>WER: <span style="color:#22c55e">20.0</span> 🟢</strong></td><td valign="top">The <span style="color:#ef4444">chef</span> of <span style="color:#ef4444">China</span> hit the floor with a <span style="color:#ef4444">clash</span>.<br><br><strong>WER: <span style="color:#ef4444">55.0</span> 🟠</strong></td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+#### Sample 5
+
+<table>
+  <tr>
+    <td width="42%" valign="top">
+      <video width="480" src="https://private-user-images.githubusercontent.com/201621992/594835233-2d847f22-a6d4-4d84-9bec-79a39001f9ca.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzkyMDU0NDYsIm5iZiI6MTc3OTIwNTE0NiwicGF0aCI6Ii8yMDE2MjE5OTIvNTk0ODM1MjMzLTJkODQ3ZjIyLWE2ZDQtNGQ4NC05YmVjLTc5YTM5MDAxZjljYS5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwNTE5JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDUxOVQxNTM5MDZaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1mODgyYWRlZGI3OThjZWZmNzg1ZDhmNDRiNDMxZjYzZmE0Njk5OWJjYWJkZTVhZmM0OTM0OTI4MWI3ZmEzMGI0JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9dmlkZW8lMkZtcDQifQ.qJS-ALDMknvRYFY73hGYmJ-WLzwtC4LRHJnHXlkpyyU" controls></video>
+    </td>
+    <td width="58%" valign="top">
+      <strong>Ground Truth</strong><br><br>
+      Among export-led electrical and computer makers, Japan Victor Company fell fifty to two thousand three hundred twenty.<br><br><em>Reference</em>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
+      <table>
+        <tr><th valign="top">Mega-ASR (Ours)</th><th valign="top">Qwen3-ASR</th><th valign="top">Gemini-3-Pro</th><th valign="top">Seed-ASR</th><th valign="top">Whisper</th></tr>
+        <tr><td valign="top">Among export-led <span style="color:#ef4444">(missing: electrical and)</span> computer makers, Japan Victor Company fell fifty to two thousand three hundred twenty.<br><br><strong>WER: <span style="color:#22c55e">11.1</span> ✅</strong></td><td valign="top">Among export-led <span style="color:#ef4444">(missing: electrical and)</span> computer makers, Japan <span style="color:#ef4444">VictorNet sold fifty-two thousand three hundred fifty</span>.<br><br><strong>WER: <span style="color:#ef4444">38.9</span> 🟡</strong></td><td valign="top">Among export-led <span style="color:#ef4444">(missing: electrical and)</span> computer makers, Japan Victor <span style="color:#ef4444">Co.</span> fell <span style="color:#ef4444">50</span> to <span style="color:#ef4444">2,350 yen</span>.<br><br><strong>WER: <span style="color:#ef4444">35.7</span> 🟡</strong></td><td valign="top">Among export-led <span style="color:#ef4444">in</span> computer makers, Japan Victor Company <span style="color:#ef4444">sell 50 to 2300 unit</span>.<br><br><strong>WER: <span style="color:#ef4444">50.0</span> 🟠</strong></td><td valign="top">Among <span style="color:#ef4444">exporters,</span> computer makers <span style="color:#ef4444">in Japan victor companies sold</span> fifty...<br><br><strong>WER: <span style="color:#ef4444">66.7</span> 🟠</strong></td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+#### Sample 6
+
+<table>
+  <tr>
+    <td width="42%" valign="top">
+      <video width="480" src="https://private-user-images.githubusercontent.com/201621992/594835233-2d847f22-a6d4-4d84-9bec-79a39001f9ca.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzkyMDU0NDYsIm5iZiI6MTc3OTIwNTE0NiwicGF0aCI6Ii8yMDE2MjE5OTIvNTk0ODM1MjMzLTJkODQ3ZjIyLWE2ZDQtNGQ4NC05YmVjLTc5YTM5MDAxZjljYS5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwNTE5JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDUxOVQxNTM5MDZaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1mODgyYWRlZGI3OThjZWZmNzg1ZDhmNDRiNDMxZjYzZmE0Njk5OWJjYWJkZTVhZmM0OTM0OTI4MWI3ZmEzMGI0JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9dmlkZW8lMkZtcDQifQ.qJS-ALDMknvRYFY73hGYmJ-WLzwtC4LRHJnHXlkpyyU" controls></video>
+    </td>
+    <td width="58%" valign="top">
+      <strong>Ground Truth</strong><br><br>
+      Has exposure really been reduced?<br><br><em>Reference</em>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
+      <table>
+        <tr><th valign="top">Mega-ASR (Ours)</th><th valign="top">Qwen3-ASR</th><th valign="top">Gemini-3-Pro</th><th valign="top">Seed-ASR</th><th valign="top">Whisper</th></tr>
+        <tr><td valign="top"><span style="color:#22c55e">Has exposure really been reduced</span><span style="color:#ef4444">.</span><br><br><strong>WER: <span style="color:#22c55e">8.0</span> ✅</strong></td><td valign="top">Has exposure really <span style="color:#ef4444">done you?</span><br><br><strong>WER: <span style="color:#ef4444">40.0</span> 🟡</strong></td><td valign="top">Has <span style="color:#ef4444">the closure</span> really <span style="color:#ef4444">affected you?</span><br><br><strong>WER: <span style="color:#ef4444">80.0</span> 🔴</strong></td><td valign="top">Has exposure <span style="color:#ef4444">to beauty products.</span><br><br><strong>WER: <span style="color:#ef4444">60.0</span> 🟠</strong></td><td valign="top"><span style="color:#ef4444">Have those who</span> really <span style="color:#ef4444">been refused?</span><br><br><strong>WER: <span style="color:#ef4444">78.5</span> 🔴</strong></td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
 
 </details>
+
+
 
 <!-- 
 ### Comparson with SOTA open-source and closed-source models.
