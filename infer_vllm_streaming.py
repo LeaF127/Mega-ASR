@@ -3,6 +3,7 @@ sys.path.append("src")
 
 import argparse
 import os
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -163,6 +164,7 @@ def main():
     )
 
     wav16k = read_audio_16k(audio)
+    audio_duration = wav16k.shape[0] / 16000.0
     step = int(round(args.step_ms / 1000.0 * 16000))
     if step <= 0:
         raise ValueError("--step_ms must be positive.")
@@ -186,39 +188,59 @@ def main():
     segment_id = 1
     segment_start = 0
     committed_text = ""
+    total_infer_time = 0.0
     while pos < wav16k.shape[0]:
         seg = wav16k[pos:pos + step]
         pos += seg.shape[0]
         call_id += 1
+        chunk_duration = seg.shape[0] / 16000.0
+        t0 = time.perf_counter()
         model.streaming_transcribe(seg, state)
+        chunk_infer = time.perf_counter() - t0
+        total_infer_time += chunk_infer
+        chunk_rtf = chunk_infer / chunk_duration if chunk_duration > 0 else 0.0
         live_text = merge_transcript(committed_text, state.text)
         print(
             f"[call {call_id:03d} segment={segment_id:03d}] "
-            f"language={state.language!r} text={live_text!r}"
+            f"language={state.language!r} text={live_text!r}  chunk_RTF={chunk_rtf:.3f}"
         )
 
         if reset_samples > 0 and pos < wav16k.shape[0] and pos - segment_start >= reset_samples:
+            t0 = time.perf_counter()
             committed_text = finish_state(
                 model,
                 state,
                 committed_text,
                 label=f"reset {segment_id:03d}",
             )
+            total_infer_time += time.perf_counter() - t0
             segment_id += 1
             replay_start = max(0, pos - overlap_samples)
             segment_start = replay_start
             context = make_context(committed_text, args.context_chars)
             state = init_state(model, args, context=context)
             if replay_start < pos:
+                replay_duration = (pos - replay_start) / 16000.0
+                t0 = time.perf_counter()
                 model.streaming_transcribe(wav16k[replay_start:pos], state)
+                replay_infer = time.perf_counter() - t0
+                total_infer_time += replay_infer
+                replay_rtf = replay_infer / replay_duration if replay_duration > 0 else 0.0
                 replay_text = merge_transcript(committed_text, state.text)
                 print(
                     f"[replay segment={segment_id:03d}] "
-                    f"language={state.language!r} text={replay_text!r}"
+                    f"language={state.language!r} text={replay_text!r}  chunk_RTF={replay_rtf:.3f}"
                 )
 
+    t0 = time.perf_counter()
     committed_text = finish_state(model, state, committed_text)
+    total_infer_time += time.perf_counter() - t0
+
+    rtf = total_infer_time / audio_duration if audio_duration > 0 else 0.0
+    rtfx = 1.0 / rtf if rtf > 0 else 0.0
     print(f"[final] language={state.language!r} text={committed_text!r}")
+    print(f"[rtf]   audio={audio_duration:.2f}s  infer={total_infer_time:.2f}s"
+          f"  RTF={rtf:.4f}  RTFx={rtfx:.2f}x")
 
 
 if __name__ == "__main__":

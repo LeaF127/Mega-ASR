@@ -16,6 +16,12 @@ from scipy.signal import resample_poly
 
 from .utils.audio_quality import LogMelSpectrogram, create_audio_quality_model
 
+
+def _mps_is_available() -> bool:
+    mps_backend = getattr(getattr(torch, "backends", None), "mps", None)
+    return bool(mps_backend is not None and mps_backend.is_available())
+
+
 class AudioQualityRouter:
     DEFAULT_CHECKPOINT = "ckpt/Mega-ASR/audio_quality_router/best_acc_model.safetensors"
 
@@ -30,7 +36,14 @@ class AudioQualityRouter:
         self.checkpoint_path = str(
             Path(checkpoint_path or self.DEFAULT_CHECKPOINT).expanduser()
         )
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        if device is not None:
+            self.device = device
+        elif torch.cuda.is_available():
+            self.device = "cuda"
+        elif _mps_is_available():
+            self.device = "mps"
+        else:
+            self.device = "cpu"
         self.threshold = threshold
         self.sample_rate = sample_rate
 
@@ -43,11 +56,13 @@ class AudioQualityRouter:
                 metadata = f.metadata()
             checkpoint_config = json.loads(metadata.get("config", "{}"))
             config = checkpoint_config.get("model", {})
-            state_dict = safe_load_file(str(checkpoint_path), device=self.device)
+            load_device = "cpu" if self.device == "mps" else self.device
+            state_dict = safe_load_file(str(checkpoint_path), device=load_device)
         else:
+            map_location = "cpu" if self.device == "mps" else self.device
             checkpoint = torch.load(
                 self.checkpoint_path,
-                map_location=self.device,
+                map_location=map_location,
                 weights_only=False,
             )
             config = checkpoint.get("config", {}).get("model", {})

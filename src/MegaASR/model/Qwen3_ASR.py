@@ -5,6 +5,11 @@ from pathlib import Path
 from typing import Any
 
 
+def _mps_is_available(torch_module: Any) -> bool:
+    mps_backend = getattr(getattr(torch_module, "backends", None), "mps", None)
+    return bool(mps_backend is not None and mps_backend.is_available())
+
+
 class Qwen3ASR:
     NAME = "Qwen3-ASR-1.7B"
     HF_REPO_ID = "Qwen/Qwen3-ASR-1.7B"
@@ -35,9 +40,19 @@ class Qwen3ASR:
             )
 
         if device_map is None:
-            device_map = "cuda:0" if torch.cuda.is_available() else "cpu"
+            if torch.cuda.is_available():
+                device_map = "cuda:0"
+            elif _mps_is_available(torch):
+                device_map = "mps"
+            else:
+                device_map = "cpu"
         if dtype is None:
-            dtype = torch.bfloat16 if device_map != "cpu" else torch.float32
+            if device_map == "cpu":
+                dtype = torch.float32
+            elif device_map == "mps":
+                dtype = torch.float16
+            else:
+                dtype = torch.bfloat16
 
         self.model = Qwen3ASRModel.from_pretrained(
             self.model_path,
