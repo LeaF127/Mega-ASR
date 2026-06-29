@@ -1,7 +1,10 @@
 import argparse
 from pathlib import Path
 
-from huggingface_hub import snapshot_download
+try:
+    from modelscope.hub.snapshot_download import snapshot_download
+except ImportError:  # pragma: no cover - handled at runtime
+    snapshot_download = None
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -10,19 +13,20 @@ DEFAULT_LOCAL_DIR = ROOT_DIR / "ckpt/Mega-ASR"
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Download Mega-ASR weights")
-    parser.add_argument("--repo_id", default=DEFAULT_REPO_ID, help="Hugging Face repo id")
+    parser = argparse.ArgumentParser(description="Download Mega-ASR weights from ModelScope")
+    parser.add_argument("--repo_id", default=DEFAULT_REPO_ID, help="ModelScope model id")
     parser.add_argument("--local_dir", default=DEFAULT_LOCAL_DIR, help="local ckpt dir")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+    if snapshot_download is None:
+        raise RuntimeError("Please install modelscope first: pip install modelscope")
+
     snapshot_download(
-        repo_id=args.repo_id,
-        repo_type="model",
+        model_id=args.repo_id,
         local_dir=str(args.local_dir),
-        local_dir_use_symlinks=False,
     )
     print(f"Downloaded to {args.local_dir}")
 
