@@ -2,13 +2,13 @@ import json
 import os
 
 # ===== 配置 =====
-TEXT_FILE  = "/tsdata/minnanyu/cloud/wav_9/text"            # 原始文本文件
-AUDIO_DIR  = "/asr-202011-202012"                             # 音频存放目录
-OUTPUT_DIR = "./jsonl"                                        # 文件输出目录
-TRAIN_FILE = "train.jsonl"                                    # 训练集输出
-TEST_FILE  = "test.jsonl"                                     # 测试集输出
-TRAIN_NUM  = 100                                              # 训练集条数
-TEST_NUM   = 10                                               # 测试集条数
+TEXT_FILE  = "/tsdata/minnanyu/cloud/wav_9/text"                # 原始文本文件
+AUDIO_DIR  = "/tsdata/minnanyu/cloud/wav_9/asr-202011-202012"   # 音频存放目录
+OUTPUT_DIR = "./jsonl"                                          # 文件输出目录
+TRAIN_FILE = "train.jsonl"                                      # 训练集输出
+TEST_FILE  = "test.jsonl"                                       # 测试集输出
+TRAIN_NUM  = 100                                                # 训练集条数
+TEST_NUM   = 10                                                 # 测试集条数
 # =================
 
 with open(TEXT_FILE, "r", encoding="utf-8") as f:
