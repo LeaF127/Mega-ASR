@@ -71,7 +71,14 @@ def write_wav_segment(src_wav_path, output_path, start_sec, end_sec):
             raise ValueError(
                 f"Segment duration is zero for {output_path}: {start_sec} - {end_sec}"
             )
-        dst.setparams(params)
+        bytes_per_frame = params.nchannels * params.sampwidth
+        datasize = num_frames * bytes_per_frame
+        if datasize > 0xFFFFFFFF:
+            raise ValueError(
+                f"Cannot write WAV segment larger than 4GB: {output_path} "
+                f"({start_sec}-{end_sec}, {datasize} bytes)"
+            )
+        dst.setparams(params._replace(nframes=num_frames))
         src.setpos(start_frame)
         frames = src.readframes(num_frames)
         dst.writeframes(frames)
