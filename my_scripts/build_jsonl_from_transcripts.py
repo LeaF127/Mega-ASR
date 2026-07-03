@@ -155,8 +155,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="递归查找 transcript.txt，并根据对应切分后的 wav 生成训练/验证 JSONL。"
     )
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--root", help="音频和 transcript 根目录，递归查找 transcript.txt")
+    parser.add_argument("--root", required=True, help="音频和 transcript 根目录，递归查找 transcript.txt")
     parser.add_argument("--train-out", default="train.jsonl", help="输出训练集 JSONL 文件名")
     parser.add_argument("--test-out", default="test.jsonl", help="输出验证集 JSONL 文件名")
     parser.add_argument("--output-dir", default=".", help="输出 JSONL 文件目录")
@@ -171,41 +170,37 @@ def main():
     root = Path(args.root)
     if not root.is_dir():
         raise FileNotFoundError(f"root 目录不存在: {root}")
-    transcripts = find_transcript_files(root, 'transcript.txt')
+    transcripts = find_transcript_files(root, "transcript.txt")
 
     if not transcripts:
-        raise FileNotFoundError(f"未找到任何 transcript.txt 文件。")
+        raise FileNotFoundError("未找到任何 transcript.txt 文件。")
 
     all_examples = []
     skipped_transcripts = 0
     for transcript_path in transcripts:
-        if args.verbose:
-            print(f"处理 transcript: {transcript_path}")
+        print(f"处理 transcript: {transcript_path}")
 
         split_folder = get_split_folder_for_transcript(
             transcript_path,
             root,
-            args.transcript_root,
-            args.split_root,
+            "keep_folders",
+            "splited_wavs",
         )
         if not split_folder or not split_folder.is_dir():
-            if args.verbose:
-                print(f"跳过: 未找到对应 split 文件夹: {split_folder}")
+            print(f"跳过: 未找到对应 split 文件夹: {split_folder}")
             skipped_transcripts += 1
             continue
 
         entries = parse_transcript_file(transcript_path)
         if not entries:
-            if args.verbose:
-                print(f"跳过: 未解析到任何时间戳文本: {transcript_path}")
+            print(f"跳过: 未解析到任何时间戳文本: {transcript_path}")
             skipped_transcripts += 1
             continue
 
         text_map = build_text_map(entries)
         examples = build_examples_from_split_folder(split_folder, text_map)
         if not examples:
-            if args.verbose:
-                print(f"跳过: 未生成样本: {split_folder}")
+            print(f"跳过: 未生成样本: {split_folder}")
             skipped_transcripts += 1
             continue
 
