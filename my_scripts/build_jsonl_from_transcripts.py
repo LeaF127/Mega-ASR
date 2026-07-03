@@ -171,10 +171,10 @@ def main():
     root = Path(args.root)
     if not root.is_dir():
         raise FileNotFoundError(f"root 目录不存在: {root}")
-    transcripts = find_transcript_files(root, args.transcript_name)
+    transcripts = find_transcript_files(root, 'transcript.txt')
 
     if not transcripts:
-        raise FileNotFoundError(f"未找到任何 {args.transcript_name} 文件。")
+        raise FileNotFoundError(f"未找到任何 transcript.txt 文件。")
 
     all_examples = []
     skipped_transcripts = 0
