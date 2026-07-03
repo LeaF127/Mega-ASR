@@ -110,6 +110,34 @@ def build_examples_from_split_folder(split_folder: Path, text_map):
     return examples
 
 
+def find_transcript_files(root: Path, transcript_name: str):
+    return sorted(root.rglob(transcript_name))
+
+
+def get_split_folder_for_transcript(
+    transcript_path: Path,
+    root: Path,
+    transcript_root_name: str,
+    split_root_name: str,
+):
+    """
+    root: /tcdata2/lyb_voice/finetune
+    文本路径：/tcdata2/lyb_voice/finetune/keep_folders
+    切分后音频路径：/tcdata2/lyb_voice/finetune/splited_wavs
+    """
+    
+    try:
+        relative = transcript_path.relative_to(root / transcript_root_name)
+        return root / split_root_name / relative.parent
+    except ValueError:
+        parts = transcript_path.parts
+        if transcript_root_name in parts:
+            idx = parts.index(transcript_root_name)
+            relative = Path(*parts[idx + 1:-1])
+            return root / split_root_name / relative
+        return root / split_root_name / transcript_path.parent.name
+
+
 def split_dataset(examples, train_ratio: float, seed: int = 42):
     random.Random(seed).shuffle(examples)
     split_at = int(len(examples) * train_ratio)
@@ -125,10 +153,10 @@ def write_jsonl(examples, out_path: Path):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="从 transcript.txt 和切分后的 wav 生成训练/验证 JSONL。"
+        description="递归查找 transcript.txt，并根据对应切分后的 wav 生成训练/验证 JSONL。"
     )
-    parser.add_argument("--transcript", required=True, help="transcript.txt 文件路径")
-    parser.add_argument("--split-dir", required=True, help="切分后 wav 所在目录")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--root", help="音频和 transcript 根目录，递归查找 transcript.txt")
     parser.add_argument("--train-out", default="train.jsonl", help="输出训练集 JSONL 文件名")
     parser.add_argument("--test-out", default="test.jsonl", help="输出验证集 JSONL 文件名")
     parser.add_argument("--output-dir", default=".", help="输出 JSONL 文件目录")
@@ -136,29 +164,65 @@ def main():
     parser.add_argument("--seed", type=int, default=42, help="随机种子，默认 42")
     args = parser.parse_args()
 
-    transcript_path = Path(args.transcript)
-    split_dir = Path(args.split_dir)
     output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    if not transcript_path.is_file():
-        raise FileNotFoundError(f"transcript 文件不存在: {transcript_path}")
-    if not split_dir.is_dir():
-        raise FileNotFoundError(f"切分后的 wav 目录不存在: {split_dir}")
+    transcripts = []
+    root = Path(args.root)
+    if not root.is_dir():
+        raise FileNotFoundError(f"root 目录不存在: {root}")
+    transcripts = find_transcript_files(root, args.transcript_name)
 
-    entries = parse_transcript_file(transcript_path)
-    if not entries:
-        raise ValueError(f"未解析到任何时间戳文本: {transcript_path}")
+    if not transcripts:
+        raise FileNotFoundError(f"未找到任何 {args.transcript_name} 文件。")
 
-    text_map = build_text_map(entries)
-    examples = build_examples_from_split_folder(split_dir, text_map)
-    if not examples:
-        raise ValueError(f"未生成任何训练样本，请检查 split_dir 路径和 wav 文件名格式: {split_dir}")
+    all_examples = []
+    skipped_transcripts = 0
+    for transcript_path in transcripts:
+        if args.verbose:
+            print(f"处理 transcript: {transcript_path}")
 
-    train_examples, test_examples = split_dataset(examples, args.train_ratio, args.seed)
+        split_folder = get_split_folder_for_transcript(
+            transcript_path,
+            root,
+            args.transcript_root,
+            args.split_root,
+        )
+        if not split_folder or not split_folder.is_dir():
+            if args.verbose:
+                print(f"跳过: 未找到对应 split 文件夹: {split_folder}")
+            skipped_transcripts += 1
+            continue
+
+        entries = parse_transcript_file(transcript_path)
+        if not entries:
+            if args.verbose:
+                print(f"跳过: 未解析到任何时间戳文本: {transcript_path}")
+            skipped_transcripts += 1
+            continue
+
+        text_map = build_text_map(entries)
+        examples = build_examples_from_split_folder(split_folder, text_map)
+        if not examples:
+            if args.verbose:
+                print(f"跳过: 未生成样本: {split_folder}")
+            skipped_transcripts += 1
+            continue
+
+        all_examples.extend(examples)
+
+    if not all_examples:
+        raise ValueError("未生成任何训练样本，请检查 transcript 和切分后 wav 的路径是否匹配。")
+
+    train_examples, test_examples = split_dataset(all_examples, args.train_ratio, args.seed)
 
     write_jsonl(train_examples, output_dir / args.train_out)
     write_jsonl(test_examples, output_dir / args.test_out)
-    print(f"生成完成: train={len(train_examples)} test={len(test_examples)} 总计={len(examples)}")
+
+    print(
+        f"生成完成: transcript={len(transcripts)} 跳过={skipped_transcripts} 总样本={len(all_examples)} "
+        f"train={len(train_examples)} test={len(test_examples)}"
+    )
 
 
 if __name__ == "__main__":
