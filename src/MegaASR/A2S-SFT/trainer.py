@@ -48,8 +48,7 @@ class MegaASRTrainer(Trainer):
     def training_step(self, model, inputs, num_items_in_batch=None):
         debug_info = inputs.pop("__debug_info__", None)
         self._debug_batch_idx += 1
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
+        if self._debug_batch_idx % 50 == 0 and torch.cuda.is_available():
             allocated_mb = torch.cuda.memory_allocated() / 1024**2
             reserved_mb = torch.cuda.memory_reserved() / 1024**2
             print(
@@ -57,10 +56,10 @@ class MegaASRTrainer(Trainer):
                 f"allocated={allocated_mb:.1f}MB reserved={reserved_mb:.1f}MB "
                 f"shapes={'; '.join(_summarize_tensor_shapes(inputs))}"
             )
-        if debug_info is not None:
+        if self._debug_batch_idx % 50 == 0 and debug_info is not None:
             samples = debug_info.get("samples", [])
             sample_summary = []
-            for sample in samples[:5]:
+            for sample in samples[:3]:
                 audio_path = sample.get("audio", "")
                 sample_summary.append(
                     f"{sample.get('index', '?')}:{Path(audio_path).name if audio_path else '?'} "
@@ -68,14 +67,13 @@ class MegaASRTrainer(Trainer):
                 )
             if sample_summary:
                 print(f"[memory] batch={self._debug_batch_idx} samples={sample_summary}")
-            if len(samples) > 5:
-                print(f"[memory] batch={self._debug_batch_idx} ... and {len(samples) - 5} more samples")
+            if len(samples) > 3:
+                print(f"[memory] batch={self._debug_batch_idx} ... and {len(samples) - 3} more samples")
 
         try:
             return super().training_step(model, inputs, num_items_in_batch=num_items_in_batch)
         except torch.cuda.OutOfMemoryError:
             if torch.cuda.is_available():
-                torch.cuda.synchronize()
                 allocated_mb = torch.cuda.memory_allocated() / 1024**2
                 reserved_mb = torch.cuda.memory_reserved() / 1024**2
                 print(

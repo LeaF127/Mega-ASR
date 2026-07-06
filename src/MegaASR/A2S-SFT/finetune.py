@@ -12,7 +12,6 @@ from trainer import MegaASRTrainer
 def log_gpu_memory(stage: str, extra: str = ""):
     if not torch.cuda.is_available():
         return
-    torch.cuda.synchronize()
     allocated_mb = torch.cuda.memory_allocated() / 1024**2
     reserved_mb = torch.cuda.memory_reserved() / 1024**2
     peak_mb = torch.cuda.max_memory_reserved() / 1024**2
