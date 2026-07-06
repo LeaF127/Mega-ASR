@@ -101,7 +101,7 @@ def build_text_map(entries):
     return result
 
 
-def build_examples_from_split_folder(split_folder: Path, text_map):
+def build_examples_from_split_folder(split_folder: Path, text_map, max_duration_sec: float = 60.0):
     examples = []
     for wav_path in sorted(split_folder.glob("*.wav")):
         filename = wav_path.name
@@ -109,6 +109,10 @@ def build_examples_from_split_folder(split_folder: Path, text_map):
         if parsed is None:
             continue
         start_sec, end_sec = parsed
+        duration_sec = end_sec - start_sec
+        if duration_sec > max_duration_sec:
+            continue
+
         key = format_segment_timestamp(start_sec)
         text = text_map.get(key)
         if text is None:
@@ -182,6 +186,7 @@ def main():
     parser.add_argument("--output-dir", default=".", help="输出 JSONL 文件目录")
     parser.add_argument("--train-ratio", type=float, default=0.9, help="训练集比例，默认 0.9")
     parser.add_argument("--seed", type=int, default=42, help="随机种子，默认 42")
+    parser.add_argument("--max-duration-sec", type=float, default=60.0, help="仅保留时长不超过该秒数的样本，默认 60")
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -219,7 +224,7 @@ def main():
             continue
 
         text_map = build_text_map(entries)
-        examples = build_examples_from_split_folder(split_folder, text_map)
+        examples = build_examples_from_split_folder(split_folder, text_map, args.max_duration_sec)
         if not examples:
             print(f"跳过: 未生成样本: {split_folder}")
             skipped_transcripts += 1
