@@ -7,7 +7,8 @@ import re
 from pathlib import Path
 
 TIMESTAMP_TEXT_RE = re.compile(
-    r"^\s*(?:Speaker\s+\d+\s*[:,]?\s*)?(\d{1,2}:\d{2}:\d{2}(?:[.,]\d+)?)(?:\s+)(.*)$",
+    # r"^\s*(?:Speaker\s+\d+\s*[:,]?\s*)?(\d{1,2}:\d{2}:\d{2}(?:[.,]\d+)?)(?:\s+)(.*)$",
+    r'^\s*(?:Speaker\s+\d+\s*)?(\d{1,2}:\d{2}:\d{2}(?:[.,]\d+)?)',
     re.IGNORECASE,
 )
 SEGMENT_FILENAME_RE = re.compile(
