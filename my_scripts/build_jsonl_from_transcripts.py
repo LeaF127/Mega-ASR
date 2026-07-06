@@ -6,6 +6,8 @@ import random
 import re
 from pathlib import Path
 
+import librosa
+
 TIMESTAMP_TEXT_RE = re.compile(
     r'^\s*(?:Speaker\s+\d+\s*[:,]?\s*)?(\d{1,2}:\d{2}:\d{2}(?:[.,]\d+)?)(?:\s+(.+))?$',
     re.IGNORECASE,
@@ -105,12 +107,22 @@ def build_examples_from_split_folder(split_folder: Path, text_map, max_duration_
     examples = []
     for wav_path in sorted(split_folder.glob("*.wav")):
         filename = wav_path.name
+        if not wav_path.exists() or wav_path.stat().st_size <= 0:
+            continue
+
         parsed = parse_segment_filename(filename)
         if parsed is None:
             continue
         start_sec, end_sec = parsed
         duration_sec = end_sec - start_sec
         if duration_sec > max_duration_sec:
+            continue
+
+        try:
+            audio_duration = librosa.get_duration(path=wav_path)
+        except Exception:
+            audio_duration = 0.0
+        if audio_duration <= 0:
             continue
 
         key = format_segment_timestamp(start_sec)

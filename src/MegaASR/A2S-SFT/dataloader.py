@@ -1,4 +1,5 @@
 # coding=utf-8
+import os
 from dataclasses import dataclass
 from typing import Any, Dict, List
 
@@ -8,7 +9,14 @@ from datasets import load_dataset
 
 
 def read_audio(path: str, sr: int = 16000):
-    return librosa.load(path, sr=sr, mono=True)[0]
+    if not path:
+        raise ValueError("audio path is empty")
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"audio file does not exist: {path}")
+    audio, _ = librosa.load(path, sr=sr, mono=True)
+    if audio is None or audio.size == 0:
+        raise ValueError(f"audio file is empty or unreadable: {path}")
+    return audio
 
 
 def audio_messages(prompt: str):
@@ -24,9 +32,20 @@ class Qwen3ASRCollator:
     sampling_rate: int = 16000
 
     def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
-        prompts = [x.get("prompt", "") for x in features]
-        targets = [x["text"] for x in features]
-        audios = [read_audio(x["audio"], self.sampling_rate) for x in features]
+        valid_items = []
+        for feature in features:
+            try:
+                audio = read_audio(feature["audio"], self.sampling_rate)
+            except Exception:
+                continue
+            valid_items.append((feature, audio))
+
+        if not valid_items:
+            raise ValueError("No valid audio samples in batch")
+
+        prompts = [x.get("prompt", "") for x, _ in valid_items]
+        targets = [x["text"] for x, _ in valid_items]
+        audios = [audio for _, audio in valid_items]
 
         prefixes = [
             self.processor.apply_chat_template(
@@ -72,7 +91,7 @@ class Qwen3ASRCollator:
 
         batch["labels"] = labels
         batch["__debug_info__"] = {
-            "batch_size": len(features),
+            "batch_size": len(valid_items),
             "samples": [
                 {
                     "index": idx,
@@ -81,7 +100,7 @@ class Qwen3ASRCollator:
                     "text_length": len(target),
                     "text_preview": target[:80],
                 }
-                for idx, (feature, audio, target) in enumerate(zip(features, audios, targets))
+                for idx, ((feature, audio), target) in enumerate(zip(valid_items, targets))
             ],
         }
         return batch
