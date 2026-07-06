@@ -51,24 +51,44 @@ def parse_segment_timestamp(timestamp_text: str) -> float:
 
 def parse_transcript_file(transcript_path: Path):
     entries = []
-    with transcript_path.open("r", encoding="utf-8", errors="ignore") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            match = TIMESTAMP_TEXT_RE.match(line)
-            if not match:
-                continue
-            start_text = match.group(1)
-            text = match.group(2) or ""
-            try:
-                start_sec = parse_timestamp(start_text)
-            except ValueError:
-                continue
-            text = text.strip()
-            if not text:
-                continue
-            entries.append((start_sec, text))
+    lines = transcript_path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if not line:
+            i += 1
+            continue
+        match = TIMESTAMP_TEXT_RE.match(line)
+        if not match:
+            i += 1
+            continue
+        start_text = match.group(1)
+        text = match.group(2) or ""
+        if not text:
+            i += 1
+            buffer = []
+            while i < len(lines):
+                next_line = lines[i].strip()
+                if not next_line:
+                    if buffer:
+                        break
+                    i += 1
+                    continue
+                if TIMESTAMP_TEXT_RE.match(next_line):
+                    break
+                buffer.append(next_line)
+                i += 1
+            text = " ".join(buffer)
+        else:
+            i += 1
+        try:
+            start_sec = parse_timestamp(start_text)
+        except ValueError:
+            continue
+        text = text.strip()
+        if not text:
+            continue
+        entries.append((start_sec, text))
     entries.sort(key=lambda x: x[0])
     return entries
 
