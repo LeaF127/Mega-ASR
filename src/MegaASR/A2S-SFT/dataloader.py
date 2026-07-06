@@ -71,6 +71,19 @@ class Qwen3ASRCollator:
             labels[labels == pad_id] = -100
 
         batch["labels"] = labels
+        batch["__debug_info__"] = {
+            "batch_size": len(features),
+            "samples": [
+                {
+                    "index": idx,
+                    "audio": feature.get("audio", ""),
+                    "audio_length_s": round(len(audio) / self.sampling_rate, 4),
+                    "text_length": len(target),
+                    "text_preview": target[:80],
+                }
+                for idx, (feature, audio, target) in enumerate(zip(features, audios, targets))
+            ],
+        }
         return batch
 
 

@@ -1,10 +1,23 @@
 # coding=utf-8
 import os
+from pathlib import Path
 from typing import Optional
 
 import torch
 from safetensors.torch import load_file as safe_load_file
 from transformers import Trainer
+
+
+def _summarize_tensor_shapes(inputs):
+    summary = []
+    for key, value in inputs.items():
+        if isinstance(value, torch.Tensor):
+            summary.append(f"{key}={tuple(value.shape)}")
+        elif isinstance(value, (list, tuple)):
+            summary.append(f"{key}=len={len(value)}")
+        else:
+            summary.append(f"{key}={type(value).__name__}")
+    return summary
 
 
 class MegaASRTrainer(Trainer):
@@ -20,6 +33,7 @@ class MegaASRTrainer(Trainer):
         self.lr_encoder = lr_encoder
         self.lr_aligner = lr_aligner
         self.lr_llm = lr_llm
+        self._debug_batch_idx = 0
 
     def _prepare_inputs(self, inputs):
         inputs = super()._prepare_inputs(inputs)
@@ -30,6 +44,50 @@ class MegaASRTrainer(Trainer):
             if torch.is_tensor(v) and v.is_floating_point():
                 inputs[k] = v.to(dtype=dtype)
         return inputs
+
+    def training_step(self, model, inputs, num_items_in_batch=None):
+        debug_info = inputs.pop("__debug_info__", None)
+        self._debug_batch_idx += 1
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+            allocated_mb = torch.cuda.memory_allocated() / 1024**2
+            reserved_mb = torch.cuda.memory_reserved() / 1024**2
+            print(
+                f"[memory] batch={self._debug_batch_idx} "
+                f"allocated={allocated_mb:.1f}MB reserved={reserved_mb:.1f}MB "
+                f"shapes={'; '.join(_summarize_tensor_shapes(inputs))}"
+            )
+        if debug_info is not None:
+            samples = debug_info.get("samples", [])
+            sample_summary = []
+            for sample in samples[:5]:
+                audio_path = sample.get("audio", "")
+                sample_summary.append(
+                    f"{sample.get('index', '?')}:{Path(audio_path).name if audio_path else '?'} "
+                    f"audio_s={sample.get('audio_length_s')} text_len={sample.get('text_length')}"
+                )
+            if sample_summary:
+                print(f"[memory] batch={self._debug_batch_idx} samples={sample_summary}")
+            if len(samples) > 5:
+                print(f"[memory] batch={self._debug_batch_idx} ... and {len(samples) - 5} more samples")
+
+        try:
+            return super().training_step(model, inputs, num_items_in_batch=num_items_in_batch)
+        except torch.cuda.OutOfMemoryError:
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+                allocated_mb = torch.cuda.memory_allocated() / 1024**2
+                reserved_mb = torch.cuda.memory_reserved() / 1024**2
+                print(
+                    f"[memory] OOM batch={self._debug_batch_idx} "
+                    f"allocated={allocated_mb:.1f}MB reserved={reserved_mb:.1f}MB"
+                )
+            if debug_info is not None:
+                print(f"[memory] OOM batch={self._debug_batch_idx} debug_info={debug_info}")
+            raise
+        finally:
+            if debug_info is not None:
+                inputs["__debug_info__"] = debug_info
 
     def save_model(self, output_dir: Optional[str] = None, _internal_call: bool = False):
         output_dir = output_dir or self.args.output_dir

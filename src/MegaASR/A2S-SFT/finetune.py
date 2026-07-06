@@ -1,4 +1,5 @@
 # coding=utf-8
+import torch
 from transformers import TrainingArguments
 
 from arguments import parse_args
@@ -6,6 +7,19 @@ from checkpointing import MakeCheckpointInferableCallback, find_latest_checkpoin
 from dataloader import Qwen3ASRCollator, build_datasets
 from modeling import apply_lora, load_qwen3_asr
 from trainer import MegaASRTrainer
+
+
+def log_gpu_memory(stage: str, extra: str = ""):
+    if not torch.cuda.is_available():
+        return
+    torch.cuda.synchronize()
+    allocated_mb = torch.cuda.memory_allocated() / 1024**2
+    reserved_mb = torch.cuda.memory_reserved() / 1024**2
+    peak_mb = torch.cuda.max_memory_reserved() / 1024**2
+    message = f"[memory] {stage}: allocated={allocated_mb:.1f}MB reserved={reserved_mb:.1f}MB peak={peak_mb:.1f}MB"
+    if extra:
+        message += f" | {extra}"
+    print(message)
 
 
 def build_training_args(args, use_bf16: bool):
@@ -45,13 +59,31 @@ def build_training_args(args, use_bf16: bool):
 def main():
     args = parse_args()
 
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats()
+        torch.cuda.empty_cache()
+
     model, processor, use_bf16 = load_qwen3_asr(args.model_path)
+    log_gpu_memory("after_load_qwen3_asr", extra=f"device={torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'cpu'}")
 
     if args.padding_side != "auto":
         processor.tokenizer.padding_side = args.padding_side
     print("padding_side =", processor.tokenizer.padding_side)
 
     model = apply_lora(model, args)
+
+    if torch.cuda.is_available():
+        device = torch.device("cuda", torch.cuda.current_device())
+        model = model.to(device)
+        param_bytes = sum(p.numel() * p.element_size() for p in model.parameters())
+        trainable_bytes = sum(p.numel() * p.element_size() for p in model.parameters() if p.requires_grad)
+        log_gpu_memory(
+            "after_model_to_cuda",
+            extra=(
+                f"params={sum(p.numel() for p in model.parameters()):,} "
+                f"param_bytes={param_bytes/1024**2:.1f}MB trainable_bytes={trainable_bytes/1024**2:.1f}MB"
+            ),
+        )
 
     dataset = build_datasets(args.train_file, args.eval_file)
     collator = Qwen3ASRCollator(processor=processor, sampling_rate=args.sr)
