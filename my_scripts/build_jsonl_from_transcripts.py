@@ -7,8 +7,7 @@ import re
 from pathlib import Path
 
 TIMESTAMP_TEXT_RE = re.compile(
-    # r"^\s*(?:Speaker\s+\d+\s*[:,]?\s*)?(\d{1,2}:\d{2}:\d{2}(?:[.,]\d+)?)(?:\s+)(.*)$",
-    r'^\s*(?:Speaker\s+\d+\s*)?(\d{1,2}:\d{2}:\d{2}(?:[.,]\d+)?)',
+    r'^\s*(?:Speaker\s+\d+\s*[:,]?\s*)?(\d{1,2}:\d{2}:\d{2}(?:[.,]\d+)?)(?:\s+(.+))?$',
     re.IGNORECASE,
 )
 SEGMENT_FILENAME_RE = re.compile(
@@ -60,7 +59,8 @@ def parse_transcript_file(transcript_path: Path):
             match = TIMESTAMP_TEXT_RE.match(line)
             if not match:
                 continue
-            start_text, text = match.groups()
+            start_text = match.group(1)
+            text = match.group(2) or ""
             try:
                 start_sec = parse_timestamp(start_text)
             except ValueError:
