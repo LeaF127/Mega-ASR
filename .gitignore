@@ -53,3 +53,6 @@ ckpt/
 scripts/infer_no_stage2_llm.py
 
 tests/
+*.wav
+exp
+jsonl

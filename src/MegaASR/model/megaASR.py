@@ -176,9 +176,9 @@ class MegaASR:
         return_route: bool = False,
         **transcribe_kwargs: Any,
     ) -> Any:
-        audio = self._unwrap_audio(audio)
-        use_lora, degraded_prob, route_source = self._route(audio)
-
+        #audio = self._unwrap_audio(audio)
+        #yhy2026-07-08 强制use_lora=True  use_lora, degraded_prob, route_source = self._route(audio)
+        use_lora=True 
         asr = self._select_asr(use_lora)
         self._set_lora(use_lora)
         result = asr.infer(
@@ -198,8 +198,8 @@ class MegaASR:
             return {
                 "text": result,
                 "use_lora": use_lora,
-                "degraded_prob": degraded_prob,
-                "route_source": route_source,
+                #"degraded_prob": degraded_prob,
+                #"route_source": route_source,
             }
 
         return result

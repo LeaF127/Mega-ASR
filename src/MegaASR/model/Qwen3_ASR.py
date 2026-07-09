@@ -97,8 +97,8 @@ class Qwen3ASR:
     ) -> str | list[str] | Any:
         if isinstance(audio, os.PathLike):
             audio = str(audio)
-        elif isinstance(audio, (list, tuple)):
-            audio = [str(item) if isinstance(item, os.PathLike) else item for item in audio]
+        #yhy2026-07-08有bug 导致内存(pcm16, samples)没法使用elif isinstance(audio, (list, tuple)):
+        #    audio = [str(item) if isinstance(item, os.PathLike) else item for item in audio]
 
         results = self.model.transcribe(
             audio=audio,
