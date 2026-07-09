@@ -5,13 +5,12 @@
 实现思路：使用 `ffmpeg` 的 `silencedetect` 分析静音区间，再用 `ffmpeg` `atrim`/`concat` 或 `-af silenceremove` 等手段生成新音频。
 本脚本依赖 `ffmpeg`/`ffprobe` 在 PATH 中可用。
 
-python my_scripts/remove_silence_segments.py /path/to/audio --pad 1.0 --silence-thresh -40 --silence-dur 0.5
+python my_scripts/remove_silence_segments.py /data1/lyb_voice/finetune --pad 1.0 --silence-thresh -40 --silence-dur 0.5
 """
 import argparse
-import json
 import os
-import shlex
 import subprocess
+import sys
 from typing import List, Tuple
 
 
@@ -85,7 +84,13 @@ def get_duration_ffprobe(path: str) -> float:
         path,
     ]
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    return float(res.stdout.strip())
+    duration_text = res.stdout.strip()
+    if not duration_text or duration_text.upper() == "N/A":
+        raise ValueError(f"ffprobe 无法获取时长: {path}")
+    try:
+        return float(duration_text)
+    except ValueError as exc:
+        raise ValueError(f"ffprobe 返回了无效时长 {duration_text!r}: {path}") from exc
 
 
 def generate_trim_commands(non_silent: List[Tuple[float, float]], pad: float, src: str, dst: str) -> List[str]:
@@ -118,18 +123,35 @@ def generate_trim_commands(non_silent: List[Tuple[float, float]], pad: float, sr
 
 
 def process_file(path: str, out_path: str, pad: float, silence_thresh: float, silence_dur: float):
-    total = get_duration_ffprobe(path)
-    intervals = ffprobe_silence_intervals(path, silence_thresh=silence_thresh, silence_duration=silence_dur)
-    non_silent = invert_intervals(intervals, total)
-    # Filter out very short non-silent pieces
-    non_silent = [p for p in non_silent if p[1] - p[0] > 0.01]
-    if not non_silent:
-        # nothing to keep, copy original
-        subprocess.run(["cp", path, out_path])
-        return True
-    cmd = generate_trim_commands(non_silent, pad, path, out_path)
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    return proc.returncode == 0
+    try:
+        total = get_duration_ffprobe(path)
+        intervals = ffprobe_silence_intervals(path, silence_thresh=silence_thresh, silence_duration=silence_dur)
+        non_silent = invert_intervals(intervals, total)
+        # Filter out very short non-silent pieces
+        non_silent = [p for p in non_silent if p[1] - p[0] > 0.01]
+        if not non_silent:
+            # nothing to keep, copy original
+            subprocess.run(["cp", path, out_path])
+            return True
+        cmd = generate_trim_commands(non_silent, pad, path, out_path)
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if proc.returncode != 0:
+            print(proc.stderr.strip())
+        return proc.returncode == 0
+    except Exception as exc:
+        print(f"处理异常: {path} -> {exc}")
+        return False
+
+
+def print_progress(index: int, total: int) -> None:
+    if total <= 0:
+        return
+    width = 30
+    filled = int(width * index / total)
+    bar = "#" * filled + "-" * (width - filled)
+    percent = index / total * 100
+    sys.stdout.write(f"\r进度: [{bar}] {index}/{total} ({percent:5.1f}%)")
+    sys.stdout.flush()
 
 
 def main():
@@ -147,6 +169,7 @@ def main():
     exts = set(e if e.startswith(".") else f".{e}" for e in args.exts.split(","))
     os.makedirs(out_root, exist_ok=True)
 
+    audio_files: List[Tuple[str, str]] = []
     for dirpath, dirnames, filenames in os.walk(root):
         # Avoid walking into the output tree if it is inside the source root.
         dirnames[:] = [d for d in dirnames if not os.path.commonpath([os.path.abspath(os.path.join(dirpath, d)), out_root]) == out_root]
@@ -158,11 +181,26 @@ def main():
                 continue
             src = os.path.join(dirpath, fn)
             dst = os.path.join(target_dir, fn)
-            print(f"处理: {src} -> {dst}")
+            if os.path.exists(dst):
+                print(f"跳过（输出已存在）: {src} -> {dst}")
+                continue
+            audio_files.append((src, dst))
+
+    total = len(audio_files)
+    print(f"共发现 {total} 个待处理音频文件")
+    for index, (src, dst) in enumerate(audio_files, 1):
+        print_progress(index, total)
+        print(f"\n[{index}/{total}] 处理: {src} -> {dst}")
+        try:
             ok = process_file(src, dst, pad=args.pad, silence_thresh=args.silence_thresh, silence_dur=args.silence_dur)
-            if not ok:
-                print(f"处理失败，复制原文件: {src}")
-                subprocess.run(["cp", src, dst])
+        except Exception as exc:
+            print(f"处理异常: {src} -> {exc}")
+            ok = False
+        if not ok:
+            print(f"处理失败，复制原文件: {src}")
+            subprocess.run(["cp", src, dst])
+
+    print("\n处理完成")
 
 
 if __name__ == "__main__":
