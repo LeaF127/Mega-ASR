@@ -78,7 +78,16 @@ def resample_audio(audio: np.ndarray, sr: int, target_sr: int) -> np.ndarray:
 
 
 def detect_speech_segments(audio: np.ndarray, sr: int, model_dir: str, pad: float, speech_threshold: float) -> List[Tuple[float, float]]:
-    config = FireRedVadConfig(speech_threshold=speech_threshold, min_speech_frame=20, min_silence_frame=20)
+    config = FireRedVadConfig(
+        use_gpu=False,
+        smooth_window_size=5,
+        speech_threshold=speech_threshold,
+        min_speech_frame=20,
+        max_speech_frame=2000,
+        min_silence_frame=20,
+        merge_silence_frame=0,
+        extend_speech_frame=0,
+        chunk_max_frame=30000)
     vad = FireRedVad.from_pretrained(model_dir, config)
     result, _ = vad.detect(audio, do_postprocess=True)
     segments = []
