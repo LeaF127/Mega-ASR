@@ -95,12 +95,40 @@ def detect_speech_segments(audio_path: str, model_dir: str, pad: float, speech_t
     _, sr = sf.read(str(audio_path))
     duration = result.get("dur", 0)
     
+    # 先收集原始语音片段（不填充）
+    raw_segments = list(result.get("timestamps", []))
+    if not raw_segments:
+        return []
+    
+    # 对每个片段应用 pad，但要检查相邻片段的距离
     segments = []
-    for start, end in result.get("timestamps", []):
-        start = max(0.0, start - pad)
-        end = min(duration, end + pad)
-        if end > start:
-            segments.append((start, end))
+    for i, (start, end) in enumerate(raw_segments):
+        # 获取下一个片段的起始位置（如果存在）
+        next_start = raw_segments[i + 1][0] if i + 1 < len(raw_segments) else None
+        
+        # 检查当前片段的后部分是否应该填充
+        padded_end = end + pad
+        if next_start is not None and (next_start - end) <= 2 * pad:
+            # 中间的静音不超过 2*pad，不填充
+            padded_end = end
+        else:
+            padded_end = min(duration, padded_end)
+        
+        # 检查当前片段的前部分是否应该填充
+        padded_start = start - pad
+        if i > 0:
+            prev_end = segments[-1][1]
+            if (start - prev_end) <= 2 * pad:
+                # 前面与上一个片段距离太近，不填充
+                padded_start = start
+            else:
+                padded_start = max(0.0, padded_start)
+        else:
+            padded_start = max(0.0, padded_start)
+        
+        if padded_end > padded_start:
+            segments.append((padded_start, padded_end))
+    
     return segments
 
 
