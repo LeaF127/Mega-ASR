@@ -77,7 +77,7 @@ def resample_audio(audio: np.ndarray, sr: int, target_sr: int) -> np.ndarray:
     return resample_poly(audio, target_sr, sr)[:target_len].astype(np.float32)
 
 
-def detect_speech_segments(audio: np.ndarray, sr: int, model_dir: str, pad: float, speech_threshold: float) -> List[Tuple[float, float]]:
+def detect_speech_segments(audio_path: str, model_dir: str, pad: float, speech_threshold: float) -> List[Tuple[float, float]]:
     config = FireRedVadConfig(
         use_gpu=False,
         smooth_window_size=5,
@@ -89,9 +89,13 @@ def detect_speech_segments(audio: np.ndarray, sr: int, model_dir: str, pad: floa
         extend_speech_frame=0,
         chunk_max_frame=30000)
     vad = FireRedVad.from_pretrained(model_dir, config)
-    result, _ = vad.detect(audio, do_postprocess=True)
+    result, _ = vad.detect(str(audio_path), do_postprocess=True)
+    
+    # 获取音频总时长
+    _, sr = sf.read(str(audio_path))
+    duration = result.get("dur", 0)
+    
     segments = []
-    duration = len(audio) / sr
     for start, end in result.get("timestamps", []):
         start = max(0.0, start - pad)
         end = min(duration, end + pad)
@@ -118,17 +122,16 @@ def stitch_audio(audio: np.ndarray, sr: int, segments: List[Tuple[float, float]]
 
 
 def process_file(input_path: Path, output_path: Path, model_dir: str, pad: float, speech_threshold: float) -> None:
+    # 加载音频
     audio, sr = load_audio(str(input_path))
-    if sr != 16000:
-        print(f"警告: {input_path} 的采样率是 {sr} Hz，VAD 模型默认使用 16k，脚本会先重采样到 16k 进行检测。")
-        vad_audio = resample_audio(audio, sr, 16000)
-        vad_sr = 16000
-    else:
-        vad_audio = audio
-        vad_sr = sr
-
-    segments = detect_speech_segments(vad_audio, vad_sr, model_dir, pad, speech_threshold)
+    
+    # 检测语音片段
+    segments = detect_speech_segments(str(input_path), model_dir, pad, speech_threshold)
+    
+    # 拼接音频
     stitched = stitch_audio(audio, sr, segments)
+    
+    # 保存结果
     save_audio(str(output_path), stitched, sr)
     print(f"已处理: {input_path} -> {output_path}，检测到 {len(segments)} 段语音")
 
@@ -155,10 +158,14 @@ def main() -> int:
         return 1
 
     output_path.mkdir(parents=True, exist_ok=True)
+    # input为目录的情况，遍历目录下的音频文件，按相对路径输出到目标目录
+    count = 0
     for file_path in iter_audio_files(str(input_path), exts):
-        rel = file_path.relative_to(input_path)
-        out_file = output_path / rel
+        rel = file_path.relative_to(input_path)  # 计算相对路径
+        out_file = output_path / rel  # 输出文件路径
         process_file(file_path, out_file, args.model_dir, args.pad, args.speech_threshold)
+        count += 1
+    print(f"\n处理完成，共处理 {count} 个文件")
 
     return 0
 
