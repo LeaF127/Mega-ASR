@@ -53,7 +53,7 @@ def collect_examples(split_dir: Path, dataset_root: Path):
             continue
 
         examples.append({
-            "audio": wav_path,
+            "audio": wav_path.as_posix(),
             "text": text,
             "prompt": "",
         })
