@@ -48,7 +48,7 @@ def collect_examples(split_dir: Path, dataset_root: Path):
             continue
 
         audio_id, text = parsed
-        wav_path = wav_dir / audio_id
+        wav_path = wav_dir / audio_id[:7] /audio_id
         if not wav_path.is_file():
             continue
 
