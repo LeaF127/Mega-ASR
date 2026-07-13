@@ -52,9 +52,8 @@ def collect_examples(split_dir: Path, dataset_root: Path):
         if not wav_path.is_file():
             continue
 
-        relative_audio = wav_path.relative_to(dataset_root).as_posix()
         examples.append({
-            "audio": relative_audio,
+            "audio": wav_path,
             "text": text,
             "prompt": "",
         })
