@@ -129,6 +129,12 @@ def main():
     parser.add_argument("--input_jsonl", required=True)
     parser.add_argument("--output_jsonl", required=True)
     parser.add_argument("--routing", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument(
+        "--mode",
+        choices=["routing", "base", "lora"],
+        default=None,
+        help="推理模式: routing=按路由决策(默认使用--routing), base=强制只用基座模型, lora=强制只用LoRA",
+    )
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--device_map", default=None)
     parser.add_argument("--gpu", default=None)
@@ -162,7 +168,7 @@ def main():
     for i in tqdm(range(0, len(data), BATCH_SIZE), desc="evaluating"):
         batch = data[i:i + BATCH_SIZE]
         audio_paths = [resolve_audio(get_audio_field(x), args.input_jsonl) for x in batch]
-        results = model.batch_infer(audio_paths)
+        results = model.batch_infer(audio_paths, force_mode=args.mode)
         for item, pred in zip(batch, results):
             pred = unwrap_prediction(pred).strip()
             language = item.get("language") or detect_language(item["answer"], pred)

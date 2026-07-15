@@ -249,9 +249,30 @@ class MegaASR:
         return self._select_asr(True).finish_streaming_transcribe(state)
 
     @torch.no_grad()
-    def batch_infer(self, audios: list[Any], **kwargs: Any) -> list[Any]:
+    def batch_infer(
+        self,
+        audios: list[Any],
+        *,
+        force_mode: str | None = None,
+        **kwargs: Any,
+    ) -> list[Any]:
+        """批量推理。
+
+        Args:
+            audios: 音频路径列表。
+            force_mode: 推理模式。
+                - None / "routing": 按路由逐条决策（默认）
+                - "base": 强制全部使用基座模型（不加载 LoRA）
+                - "lora": 强制全部使用 LoRA 微调模型
+        """
         audio_paths = [self._unwrap_audio(audio) for audio in audios]
-        routes = [self._route(audio) for audio in audio_paths]
+
+        if force_mode == "base":
+            routes = [(False, None, "forced_base") for _ in audio_paths]
+        elif force_mode == "lora":
+            routes = [(True, None, "forced_lora") for _ in audio_paths]
+        else:
+            routes = [self._route(audio) for audio in audio_paths]
 
         if self.backend == "vllm" and self.asr_lora is None:
             results = [self.asr.infer(audio_path, **kwargs) for audio_path in audio_paths]
