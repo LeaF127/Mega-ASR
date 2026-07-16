@@ -61,6 +61,18 @@ def patch_outer_forward(model):
     cls._forward_patched = True
 
 
+def log_gpu_memory(stage: str, extra: str = ""):
+    if not torch.cuda.is_available():
+        return
+    allocated_mb = torch.cuda.memory_allocated() / 1024**2
+    reserved_mb = torch.cuda.memory_reserved() / 1024**2
+    peak_mb = torch.cuda.max_memory_reserved() / 1024**2
+    message = f"[memory] {stage}: allocated={allocated_mb:.1f}MB reserved={reserved_mb:.1f}MB peak={peak_mb:.1f}MB"
+    if extra:
+        message += f" | {extra}"
+    print(message)
+
+
 _CKPT_RE = re.compile(r"^checkpoint-(\d+)$")
 
 
@@ -154,6 +166,10 @@ class DataCollatorForQwen3ASRFinetuning:
 
 
 class CastFloatInputsTrainer(Trainer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._debug_batch_idx = 0
+
     def _prepare_inputs(self, inputs):
         inputs = super()._prepare_inputs(inputs)
         model_dtype = getattr(self.model, "dtype", None)
@@ -162,6 +178,21 @@ class CastFloatInputsTrainer(Trainer):
                 if torch.is_tensor(v) and v.is_floating_point():
                     inputs[k] = v.to(dtype=model_dtype)
         return inputs
+
+    def training_step(self, model, inputs, num_items_in_batch=None):
+        self._debug_batch_idx += 1
+        try:
+            return super().training_step(model, inputs, num_items_in_batch=num_items_in_batch)
+        except torch.cuda.OutOfMemoryError:
+            if torch.cuda.is_available():
+                allocated_mb = torch.cuda.memory_allocated() / 1024**2
+                reserved_mb = torch.cuda.memory_reserved() / 1024**2
+                print(
+                    f"[memory] OOM at batch={self._debug_batch_idx} "
+                    f"allocated={allocated_mb:.1f}MB reserved={reserved_mb:.1f}MB",
+                    file=__import__("sys").stderr,
+                )
+            raise
 
 
 def copy_required_hf_files_for_qwen_asr(src_dir: str, dst_dir: str):
@@ -213,13 +244,17 @@ def parse_args():
     p.add_argument("--sr", type=int, default=16000)
 
     # Train hyper-params
-    p.add_argument("--batch_size", type=int, default=32)
-    p.add_argument("--grad_acc", type=int, default=4)
+    p.add_argument("--batch_size", type=int, default=8, help="per_device batch size（降低以减少显存）")
+    p.add_argument("--grad_acc", type=int, default=8, help="梯度累积步数")
     p.add_argument("--lr", type=float, default=2e-5)
     p.add_argument("--epochs", type=float, default=1)
+    p.add_argument("--weight_decay", type=float, default=0.0)
+    p.add_argument("--max_grad_norm", type=float, default=1.0)
     p.add_argument("--log_steps", type=int, default=10)
     p.add_argument("--lr_scheduler_type", type=str, default="linear")
-    p.add_argument("--warmup_ratio", type=float, default=0.02)
+    p.add_argument("--warmup_ratio", type=float, default=0.03)
+    p.add_argument("--gradient_checkpointing", type=int, default=0,
+                    help="启用梯度检查点（省显存但略慢）")
 
     # DataLoader
     p.add_argument("--num_workers", type=int, default=4)
@@ -257,6 +292,18 @@ def main():
     patch_outer_forward(model)
     model.generation_config = GenerationConfig.from_model_config(model.config)
 
+    # 显存优化：显式移到 GPU，避免 DataParallel 额外占用
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats()
+        torch.cuda.empty_cache()
+        device = torch.device("cuda", torch.cuda.current_device())
+        model = model.to(device)
+    log_gpu_memory("after_model_load")
+
+    # 梯度检查点：用计算换显存
+    if args_cli.gradient_checkpointing:
+        model.thinker.gradient_checkpointing_enable()
+
     raw_ds = load_dataset(
         "json",
         data_files={
@@ -283,6 +330,9 @@ def main():
         logging_steps=args_cli.log_steps,
         lr_scheduler_type=args_cli.lr_scheduler_type,
         warmup_ratio=args_cli.warmup_ratio,
+        weight_decay=args_cli.weight_decay,
+        max_grad_norm=args_cli.max_grad_norm,
+        gradient_checkpointing=bool(args_cli.gradient_checkpointing),
         dataloader_num_workers=args_cli.num_workers,
         dataloader_pin_memory=(args_cli.pin_memory == 1),
         dataloader_persistent_workers=(args_cli.persistent_workers == 1),
@@ -307,7 +357,7 @@ def main():
         train_dataset=ds["train"],
         eval_dataset=ds.get("validation", None),
         data_collator=collator,
-        tokenizer=processor.tokenizer,
+        processing_class=processor,
         callbacks=[MakeEveryCheckpointInferableCallback(base_model_path=args_cli.model_path)],
     )
 

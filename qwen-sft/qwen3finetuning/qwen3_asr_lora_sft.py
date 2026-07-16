@@ -92,6 +92,22 @@ def patch_outer_forward(model):
 
 
 # ---------------------------------------------------------------------------
+# 显存监控工具
+# ---------------------------------------------------------------------------
+
+def log_gpu_memory(stage: str, extra: str = ""):
+    if not torch.cuda.is_available():
+        return
+    allocated_mb = torch.cuda.memory_allocated() / 1024**2
+    reserved_mb = torch.cuda.memory_reserved() / 1024**2
+    peak_mb = torch.cuda.max_memory_reserved() / 1024**2
+    message = f"[memory] {stage}: allocated={allocated_mb:.1f}MB reserved={reserved_mb:.1f}MB peak={peak_mb:.1f}MB"
+    if extra:
+        message += f" | {extra}"
+    print(message)
+
+
+# ---------------------------------------------------------------------------
 # Checkpoint utils (same as qwen3_asr_sft.py)
 # ---------------------------------------------------------------------------
 
@@ -260,6 +276,7 @@ class Qwen3ASRLoRATrainer(Trainer):
         self.lr_encoder = lr_encoder
         self.lr_aligner = lr_aligner
         self.lr_llm = lr_llm
+        self._debug_batch_idx = 0
 
     # --- float type casting (same as CastFloatInputsTrainer) ---
 
@@ -271,6 +288,25 @@ class Qwen3ASRLoRATrainer(Trainer):
                 if torch.is_tensor(v) and v.is_floating_point():
                     inputs[k] = v.to(dtype=model_dtype)
         return inputs
+
+    # --- OOM 感知的 training_step（来自 MegaASR） ---
+
+    def training_step(self, model, inputs, num_items_in_batch=None):
+        self._debug_batch_idx += 1
+        if self._debug_batch_idx % 50 == 0 and torch.cuda.is_available():
+            log_gpu_memory(f"batch={self._debug_batch_idx}")
+        try:
+            return super().training_step(model, inputs, num_items_in_batch=num_items_in_batch)
+        except torch.cuda.OutOfMemoryError:
+            if torch.cuda.is_available():
+                allocated_mb = torch.cuda.memory_allocated() / 1024**2
+                reserved_mb = torch.cuda.memory_reserved() / 1024**2
+                print(
+                    f"[memory] OOM at batch={self._debug_batch_idx} "
+                    f"allocated={allocated_mb:.1f}MB reserved={reserved_mb:.1f}MB",
+                    file=__import__("sys").stderr,
+                )
+            raise
 
     # --- save only LoRA adapter ---
 
@@ -408,6 +444,8 @@ def parse_args():
     p.add_argument("--epochs", type=float, default=1)
     p.add_argument("--weight_decay", type=float, default=0.0)
     p.add_argument("--max_grad_norm", type=float, default=1.0)
+    p.add_argument("--gradient_checkpointing", type=int, default=0,
+                    help="启用梯度检查点（省显存但略慢）")
     p.add_argument("--log_steps", type=int, default=10)
     p.add_argument("--lr_scheduler_type", type=str, default="linear")
     p.add_argument("--warmup_ratio", type=float, default=0.03)
@@ -481,6 +519,19 @@ def main():
     model.thinker = get_peft_model(model.thinker, lora_config)
     model.thinker.print_trainable_parameters()
 
+    # 显存优化：显式移到 GPU，避免 DataParallel 额外占用
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats()
+        torch.cuda.empty_cache()
+        device = torch.device("cuda", torch.cuda.current_device())
+        model = model.to(device)
+    log_gpu_memory("after_model_to_cuda")
+
+    # 梯度检查点：用计算换显存
+    if args.gradient_checkpointing:
+        model.thinker.enable_input_require_grads()
+        model.thinker.gradient_checkpointing_enable()
+
     # --- Dataset ---
     raw_ds = load_dataset(
         "json",
@@ -517,6 +568,7 @@ def main():
         warmup_ratio=args.warmup_ratio,
         weight_decay=args.weight_decay,
         max_grad_norm=args.max_grad_norm,
+        gradient_checkpointing=bool(args.gradient_checkpointing),
         dataloader_num_workers=args.num_workers,
         dataloader_pin_memory=bool(args.pin_memory),
         dataloader_persistent_workers=bool(args.persistent_workers),
