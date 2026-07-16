@@ -366,7 +366,7 @@ def main():
         do_eval=bool(args_cli.eval_file),
         bf16=bf16_enabled,
         fp16=fp16_enabled,
-        ddp_find_unused_parameters=False,
+        ddp_find_unused_parameters=True,
         remove_unused_columns=False,
         report_to="none",
     )

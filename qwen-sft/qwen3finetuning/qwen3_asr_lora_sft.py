@@ -543,9 +543,8 @@ def main():
         torch.cuda.empty_cache()
     log_gpu_memory("after_model_to_cuda")
 
-    # 梯度检查点：用计算换显存
+    # 梯度检查点：用计算换显存（仅对 LLM 部分启用，避免与 PEFT + DDP 冲突）
     if args.gradient_checkpointing:
-        model.thinker.enable_input_require_grads()
         model.thinker.gradient_checkpointing_enable()
 
     # --- Dataset ---
@@ -598,7 +597,7 @@ def main():
         do_eval=bool(args.eval_file),
         bf16=bf16_enabled,
         fp16=fp16_enabled,
-        ddp_find_unused_parameters=False,
+        ddp_find_unused_parameters=True,  # LoRA 下部分参数可能不参与梯度计算
         remove_unused_columns=False,
         report_to="none",
     )
