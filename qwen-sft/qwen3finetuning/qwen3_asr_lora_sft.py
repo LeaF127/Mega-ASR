@@ -543,7 +543,6 @@ def main():
         eval_dataset=ds.get("validation", None),
         data_collator=collator,
         processing_class=processor,
-        tokenizer=processor.tokenizer,
         callbacks=[MakeEveryCheckpointInferableCallback(base_model_path=args.model_path)],
         processor=processor,
         base_model_path=args.model_path,
