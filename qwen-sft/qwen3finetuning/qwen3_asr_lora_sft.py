@@ -444,8 +444,6 @@ def parse_args():
     p.add_argument("--epochs", type=float, default=1)
     p.add_argument("--weight_decay", type=float, default=0.0)
     p.add_argument("--max_grad_norm", type=float, default=1.0)
-    p.add_argument("--gradient_checkpointing", type=int, default=0,
-                    help="启用梯度检查点（省显存但略慢）")
     p.add_argument("--bf16", action="store_true", default=None, help="使用 bf16（Ampere+ GPU 推荐）")
     p.add_argument("--fp16", action="store_true", default=None, help="使用 fp16（V100 等旧 GPU）")
     p.add_argument("--log_steps", type=int, default=10)
@@ -543,9 +541,7 @@ def main():
         torch.cuda.empty_cache()
     log_gpu_memory("after_model_to_cuda")
 
-    # 梯度检查点：用计算换显存（仅对 LLM 部分启用，避免与 PEFT + DDP 冲突）
-    if args.gradient_checkpointing:
-        model.thinker.gradient_checkpointing_enable()
+    # 注意：PEFT + DDP + 梯度检查点三者不兼容，LoRA 本身已大幅降低显存，无需开启
 
     # --- Dataset ---
     raw_ds = load_dataset(
@@ -583,7 +579,6 @@ def main():
         warmup_ratio=args.warmup_ratio,
         weight_decay=args.weight_decay,
         max_grad_norm=args.max_grad_norm,
-        gradient_checkpointing=bool(args.gradient_checkpointing),
         dataloader_num_workers=args.num_workers,
         dataloader_pin_memory=bool(args.pin_memory),
         dataloader_persistent_workers=bool(args.persistent_workers),

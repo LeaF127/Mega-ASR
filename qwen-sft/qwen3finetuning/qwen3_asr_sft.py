@@ -320,9 +320,7 @@ def main():
         torch.cuda.empty_cache()
     log_gpu_memory("after_model_load")
 
-    # 梯度检查点：用计算换显存
-    if args_cli.gradient_checkpointing:
-        model.thinker.gradient_checkpointing_enable()
+    # 梯度检查点由 TrainingArguments 控制，无需手动调用
 
     raw_ds = load_dataset(
         "json",
