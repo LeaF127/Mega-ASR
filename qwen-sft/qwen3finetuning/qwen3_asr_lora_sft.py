@@ -519,12 +519,10 @@ def main():
     model.thinker = get_peft_model(model.thinker, lora_config)
     model.thinker.print_trainable_parameters()
 
-    # 显存优化：显式移到 GPU，避免 DataParallel 额外占用
+    # 显存监控：只记录，不手动移 GPU（DDP / Trainer 会自动处理设备分配）
     if torch.cuda.is_available():
         torch.cuda.reset_peak_memory_stats()
         torch.cuda.empty_cache()
-        device = torch.device("cuda", torch.cuda.current_device())
-        model = model.to(device)
     log_gpu_memory("after_model_to_cuda")
 
     # 梯度检查点：用计算换显存
@@ -581,7 +579,7 @@ def main():
         eval_steps=args.save_steps,
         do_eval=bool(args.eval_file),
         bf16=use_bf16,
-        fp16=not use_bf16,
+        fp16=False if use_bf16 else True,
         ddp_find_unused_parameters=False,
         remove_unused_columns=False,
         report_to="none",
