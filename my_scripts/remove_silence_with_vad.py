@@ -41,6 +41,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pad", type=float, default=0.5, help="每段语音前后保留的停顿时长（秒），默认 0.5")
     parser.add_argument("--exts", default=",".join(sorted(DEFAULT_EXTS)), help="当输入是目录时处理的音频后缀，逗号分隔")
     parser.add_argument("--speech-threshold", type=float, default=0.4, help="VAD 语音阈值，默认 0.4")
+    parser.add_argument("--skip-existing", type=int, default=1,
+                        help="增量模式: 跳过输出已存在的文件（默认 1），设 0 则强制重新处理")
+    parser.add_argument("--fail-log", type=str, default="",
+                        help="错误日志文件路径，记录处理失败的文件")
+    parser.add_argument("--force", action="store_true",
+                        help="强制重新处理所有文件（等效于 --skip-existing 0）")
     return parser.parse_args()
 
 
@@ -150,33 +156,47 @@ def stitch_audio(audio: np.ndarray, sr: int, segments: List[Tuple[float, float]]
 
 
 def process_file(input_path: Path, output_path: Path, model_dir: str, pad: float, speech_threshold: float) -> None:
+    """处理单个音频文件。成功返回 None，失败抛出异常。"""
     # 加载音频
     audio, sr = load_audio(str(input_path))
-    
+    if len(audio) == 0:
+        raise ValueError(f"音频文件为空或无法读取: {input_path}")
+
     # 检测语音片段
     segments = detect_speech_segments(str(input_path), model_dir, pad, speech_threshold)
-    
+
     # 拼接音频
     stitched = stitch_audio(audio, sr, segments)
-    
+
     # 保存结果
     save_audio(str(output_path), stitched, sr)
-    print(f"已处理: {input_path} -> {output_path}，检测到 {len(segments)} 段语音")
+    print(f"已处理: {input_path} -> {output_path}，检测到 {len(segments)} 段语音，"
+          f"时长 {len(audio) / sr:.1f}s -> {len(stitched) / sr:.1f}s")
 
 
 def main() -> int:
     args = parse_args()
+
+    # --force 覆盖 --skip-existing
+    skip_existing = not args.force and bool(args.skip_existing)
+
     input_path = Path(args.input)
     output_path = Path(args.output)
 
     exts = {e if e.startswith(".") else f".{e}" for e in args.exts.split(",") if e}
 
+    # 单文件模式
     if input_path.is_file():
         if output_path.is_dir():
             output_path = output_path / input_path.name
-        process_file(input_path, output_path, args.model_dir, args.pad, args.speech_threshold)
-        return 0
+        try:
+            process_file(input_path, output_path, args.model_dir, args.pad, args.speech_threshold)
+            return 0
+        except Exception as e:
+            print(f"[错误] {input_path}: {e}", file=sys.stderr)
+            return 1
 
+    # 目录模式
     if not input_path.is_dir():
         print("输入必须是音频文件或目录", file=sys.stderr)
         return 1
@@ -186,16 +206,57 @@ def main() -> int:
         return 1
 
     output_path.mkdir(parents=True, exist_ok=True)
-    # input为目录的情况，遍历目录下的音频文件，按相对路径输出到目标目录
-    count = 0
-    for file_path in iter_audio_files(str(input_path), exts):
-        rel = file_path.relative_to(input_path)  # 计算相对路径
-        out_file = output_path / rel  # 输出文件路径
-        process_file(file_path, out_file, args.model_dir, args.pad, args.speech_threshold)
-        count += 1
-    print(f"\n处理完成，共处理 {count} 个文件")
 
-    return 0
+    # 打开失败日志文件（如果指定）
+    fail_log = None
+    if args.fail_log:
+        fail_log_path = Path(args.fail_log)
+        fail_log_path.parent.mkdir(parents=True, exist_ok=True)
+        fail_log = fail_log_path.open("a", encoding="utf-8")
+
+    success_count = 0
+    skip_count = 0
+    fail_count = 0
+    failed_files: list[str] = []
+
+    for file_path in iter_audio_files(str(input_path), exts):
+        rel = file_path.relative_to(input_path)
+        out_file = output_path / rel
+
+        # --- 增量跳过：输出已存在且非空 ---
+        if skip_existing and out_file.exists() and out_file.stat().st_size > 0:
+            skip_count += 1
+            continue
+
+        # --- 处理 ---
+        try:
+            process_file(file_path, out_file, args.model_dir, args.pad, args.speech_threshold)
+            success_count += 1
+        except Exception as e:
+            fail_count += 1
+            msg = f"[错误] {file_path} -> {out_file}: {e}"
+            print(msg, file=sys.stderr)
+            failed_files.append(str(file_path))
+            if fail_log is not None:
+                fail_log.write(f"{file_path}\t{out_file}\t{e}\n")
+
+    if fail_log is not None:
+        fail_log.close()
+
+    # --- 最终统计 ---
+    total = success_count + skip_count + fail_count
+    parts = [f"成功 {success_count} 个"]
+    if skip_count:
+        parts.append(f"跳过 {skip_count} 个（已存在）")
+    if fail_count:
+        parts.append(f"失败 {fail_count} 个")
+        if failed_files:
+            print("\n失败文件列表:", file=sys.stderr)
+            for f in failed_files:
+                print(f"  {f}", file=sys.stderr)
+    print(f"\n处理完成，共 {total} 个文件，{'，'.join(parts)}")
+
+    return 1 if fail_count > 0 else 0
 
 
 if __name__ == "__main__":
