@@ -446,6 +446,8 @@ def parse_args():
     p.add_argument("--max_grad_norm", type=float, default=1.0)
     p.add_argument("--gradient_checkpointing", type=int, default=0,
                     help="启用梯度检查点（省显存但略慢）")
+    p.add_argument("--bf16", action="store_true", default=None, help="使用 bf16（Ampere+ GPU 推荐）")
+    p.add_argument("--fp16", action="store_true", default=None, help="使用 fp16（V100 等旧 GPU）")
     p.add_argument("--log_steps", type=int, default=10)
     p.add_argument("--lr_scheduler_type", type=str, default="linear")
     p.add_argument("--warmup_ratio", type=float, default=0.03)
@@ -476,13 +478,29 @@ def main():
     if not args.train_file:
         raise ValueError("TRAIN_FILE is required (json/jsonl). Needs fields: audio, text, optional prompt")
 
-    # --- Detect hardware ---
-    use_bf16 = torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] >= 8
+    # --- 混合精度选择 ---
+    bf16_enabled = args.bf16
+    fp16_enabled = args.fp16
+    if bf16_enabled is None and fp16_enabled is None:
+        gpu_supports_bf16 = (
+            torch.cuda.is_available()
+            and torch.cuda.get_device_capability(0)[0] >= 8
+        )
+        bf16_enabled = gpu_supports_bf16
+        fp16_enabled = not gpu_supports_bf16
+    elif bf16_enabled and fp16_enabled:
+        raise ValueError("--bf16 和 --fp16 不能同时使用")
+    else:
+        bf16_enabled = bool(bf16_enabled)
+        fp16_enabled = bool(fp16_enabled)
+
+    model_dtype = torch.bfloat16 if bf16_enabled else torch.float16
+    print(f"[precision] bf16={bf16_enabled} fp16={fp16_enabled} dtype={model_dtype}")
 
     # --- Load model ---
     asr_wrapper = Qwen3ASRModel.from_pretrained(
         args.model_path,
-        dtype=torch.bfloat16 if use_bf16 else torch.float16,
+        dtype=model_dtype,
         device_map=None,
     )
     model = asr_wrapper.model
@@ -578,8 +596,8 @@ def main():
         eval_strategy="steps",
         eval_steps=args.save_steps,
         do_eval=bool(args.eval_file),
-        bf16=use_bf16,
-        fp16=False if use_bf16 else True,
+        bf16=bf16_enabled,
+        fp16=fp16_enabled,
         ddp_find_unused_parameters=False,
         remove_unused_columns=False,
         report_to="none",
