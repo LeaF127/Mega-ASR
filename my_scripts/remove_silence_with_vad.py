@@ -20,6 +20,7 @@ from typing import Iterable, List, Tuple
 import numpy as np
 import soundfile as sf
 from scipy.signal import resample_poly
+from tqdm import tqdm
 
 # 让脚本可以直接使用仓库里的 fireredvad 包
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "fireredvad"))
@@ -170,8 +171,10 @@ def process_file(input_path: Path, output_path: Path, model_dir: str, pad: float
 
     # 保存结果
     save_audio(str(output_path), stitched, sr)
-    print(f"已处理: {input_path} -> {output_path}，检测到 {len(segments)} 段语音，"
-          f"时长 {len(audio) / sr:.1f}s -> {len(stitched) / sr:.1f}s")
+    dur_in = len(audio) / sr
+    dur_out = len(stitched) / sr
+    tqdm.write(f"已处理: {input_path} -> {output_path}，检测到 {len(segments)} 段语音，"
+               f"时长 {dur_in:.1f}s -> {dur_out:.1f}s")
 
 
 def main() -> int:
@@ -193,7 +196,7 @@ def main() -> int:
             process_file(input_path, output_path, args.model_dir, args.pad, args.speech_threshold)
             return 0
         except Exception as e:
-            print(f"[错误] {input_path}: {e}", file=sys.stderr)
+            tqdm.write(f"[错误] {input_path}: {e}")
             return 1
 
     # 目录模式
@@ -214,18 +217,29 @@ def main() -> int:
         fail_log_path.parent.mkdir(parents=True, exist_ok=True)
         fail_log = fail_log_path.open("a", encoding="utf-8")
 
+    # --- 先扫描所有文件，确定总数 ---
+    all_files = list(iter_audio_files(str(input_path), exts))
+    total = len(all_files)
+    if total == 0:
+        print(f"在 {input_path} 中未找到任何音频文件（后缀: {', '.join(sorted(exts))}）", file=sys.stderr)
+        return 1
+    print(f"共发现 {total} 个音频文件，开始处理...")
+
     success_count = 0
     skip_count = 0
     fail_count = 0
     failed_files: list[str] = []
 
-    for file_path in iter_audio_files(str(input_path), exts):
+    pbar = tqdm(total=total, desc="处理中", unit="file", ncols=80)
+
+    for file_path in all_files:
         rel = file_path.relative_to(input_path)
         out_file = output_path / rel
 
         # --- 增量跳过：输出已存在且非空 ---
         if skip_existing and out_file.exists() and out_file.stat().st_size > 0:
             skip_count += 1
+            pbar.update(1)
             continue
 
         # --- 处理 ---
@@ -235,16 +249,19 @@ def main() -> int:
         except Exception as e:
             fail_count += 1
             msg = f"[错误] {file_path} -> {out_file}: {e}"
-            print(msg, file=sys.stderr)
+            tqdm.write(msg)
             failed_files.append(str(file_path))
             if fail_log is not None:
                 fail_log.write(f"{file_path}\t{out_file}\t{e}\n")
+
+        pbar.update(1)
+
+    pbar.close()
 
     if fail_log is not None:
         fail_log.close()
 
     # --- 最终统计 ---
-    total = success_count + skip_count + fail_count
     parts = [f"成功 {success_count} 个"]
     if skip_count:
         parts.append(f"跳过 {skip_count} 个（已存在）")
