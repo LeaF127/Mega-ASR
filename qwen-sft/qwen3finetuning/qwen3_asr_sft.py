@@ -127,11 +127,27 @@ def make_preprocess_fn_prefix_only(processor):
 class DataCollatorForQwen3ASRFinetuning:
     processor: Any
     sampling_rate: int = 16000
+    min_duration: float = 0.5  # 最小音频时长（秒），过短会导致 audio_tower 报 IndexError
 
     def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
-        audio_paths = [f["audio"] for f in features]
-        prefix_texts = [f["prefix_text"] for f in features]
-        targets = [f["target"] for f in features]
+        # 过滤过短的音频
+        valid = []
+        for f in features:
+            dur = librosa.get_duration(path=f["audio"])
+            if dur < self.min_duration:
+                print(f"[跳过] 音频过短 ({dur:.1f}s < {self.min_duration}s): {f['audio']}")
+                continue
+            valid.append(f)
+
+        if not valid:
+            raise ValueError(
+                f"batch 内所有音频均短于 {self.min_duration}s，"
+                "请检查数据或调低 --min_duration"
+            )
+
+        audio_paths = [f["audio"] for f in valid]
+        prefix_texts = [f["prefix_text"] for f in valid]
+        targets = [f["target"] for f in valid]
 
         eos = self.processor.tokenizer.eos_token or ""
         full_texts = [pfx + tgt + eos for pfx, tgt in zip(prefix_texts, targets)]
@@ -242,6 +258,8 @@ def parse_args():
 
     # Audio
     p.add_argument("--sr", type=int, default=16000)
+    p.add_argument("--min_duration", type=float, default=0.5,
+                    help="最小音频时长（秒），低于此值的音频将被跳过，默认 0.5")
 
     # Train hyper-params
     p.add_argument("--batch_size", type=int, default=8, help="per_device batch size（降低以减少显存）")
@@ -337,7 +355,9 @@ def main():
         if drop:
             ds[split] = ds[split].remove_columns(drop)
 
-    collator = DataCollatorForQwen3ASRFinetuning(processor=processor, sampling_rate=args_cli.sr)
+    collator = DataCollatorForQwen3ASRFinetuning(
+        processor=processor, sampling_rate=args_cli.sr, min_duration=args_cli.min_duration
+    )
 
     training_args = TrainingArguments(
         output_dir=args_cli.output_dir,
