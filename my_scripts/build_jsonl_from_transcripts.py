@@ -1,4 +1,18 @@
 #!/usr/bin/env python3
+"""
+根据 transcript.txt 和切分后的 wav 文件生成训练/验证 JSONL。
+
+- 文本文件 (transcript.txt): 每行格式为 "HH:MM:SS[.mmm] 文本内容"
+- 音频文件: 命名格式为 "HH-MM-SS[.mmm]_HH-MM-SS[.mmm].wav"（毫秒可选）
+- 通过起始时间戳将音频片段与文本行匹配
+
+用法:
+    python my_scripts/build_jsonl_from_transcripts.py \
+        --audio-dir /path/to/splited_wavs \
+        --text-dir /path/to/keep_folders \
+        --output-dir outputs
+"""
+
 import argparse
 import json
 import os
@@ -8,16 +22,26 @@ from pathlib import Path
 
 import librosa
 
+# ---------------------------------------------------------------------------
+# 正则表达式：解析 transcript.txt 中的时间戳行
+# 格式: [Speaker 1: ]HH:MM:SS[.mmm] 文本内容
+# ---------------------------------------------------------------------------
 TIMESTAMP_TEXT_RE = re.compile(
     r'^\s*(?:Speaker\s+\d+\s*[:,]?\s*)?(\d{1,2}:\d{2}:\d{2}(?:[.,]\d+)?)(?:\s+(.+))?$',
     re.IGNORECASE,
 )
+
+# ---------------------------------------------------------------------------
+# 正则表达式：解析 wav 文件名中的起止时间戳
+# 格式: HH-MM-SS[.mmm]_HH-MM-SS[.mmm].wav（毫秒部分可选，适配 strip_ms 后的文件名）
+# ---------------------------------------------------------------------------
 SEGMENT_FILENAME_RE = re.compile(
-    r"^(\d{2}-\d{2}-\d{2}\.\d{3})_(\d{2}-\d{2}-\d{2}\.\d{3})\.wav$"
+    r"^(\d{2}-\d{2}-\d{2})(?:\.\d{3})?_(\d{2}-\d{2}-\d{2})(?:\.\d{3})?\.wav$"
 )
 
 
 def parse_timestamp(timestamp_text: str) -> float:
+    """将 HH:MM:SS[.mmm] 格式的时间戳转换为秒数（float）。"""
     normalized = timestamp_text.replace("，", ",").replace(",", ".")
     parts = normalized.split(":")
     if len(parts) != 3:
@@ -29,6 +53,7 @@ def parse_timestamp(timestamp_text: str) -> float:
 
 
 def format_segment_timestamp(seconds: float) -> str:
+    """将秒数转换为 HH-MM-SS.mmm 格式字符串（用于精确匹配）。"""
     total_ms = int(round(seconds * 1000))
     hours = total_ms // 3_600_000
     minutes = (total_ms % 3_600_000) // 60_000
@@ -37,21 +62,39 @@ def format_segment_timestamp(seconds: float) -> str:
     return f"{hours:02d}-{minutes:02d}-{secs:02d}.{ms:03d}"
 
 
+def format_segment_timestamp_no_ms(seconds: float) -> str:
+    """将秒数转换为 HH-MM-SS 格式字符串（无毫秒，用于 strip 后的文件名匹配）。"""
+    total_sec = int(round(seconds))
+    hours = total_sec // 3600
+    minutes = (total_sec % 3600) // 60
+    secs = total_sec % 60
+    return f"{hours:02d}-{minutes:02d}-{secs:02d}"
+
+
 def parse_segment_filename(filename: str):
+    """从 wav 文件名中解析起止时间戳，返回 (start_sec, end_sec) 或 None。"""
     match = SEGMENT_FILENAME_RE.match(filename)
     if not match:
         return None
-    start = match.group(1)
-    end = match.group(2)
+    start = match.group(1)  # HH-MM-SS
+    end = match.group(2)    # HH-MM-SS
     return parse_segment_timestamp(start), parse_segment_timestamp(end)
 
 
 def parse_segment_timestamp(timestamp_text: str) -> float:
+    """将 HH-MM-SS 格式的片段时间戳转换为秒数。"""
     normalized = timestamp_text.replace("-", ":")
     return parse_timestamp(normalized)
 
 
 def parse_transcript_file(transcript_path: Path):
+    """
+    解析 transcript.txt 文件，返回 [(start_sec, text), ...] 列表。
+
+    支持两种格式：
+    1. 单行: "HH:MM:SS.mmm 文本内容"
+    2. 多行: 时间戳行后跟若干行纯文本，直到遇到下一个时间戳行或空行分隔
+    """
     entries = []
     lines = transcript_path.read_text(encoding="utf-8", errors="ignore").splitlines()
     i = 0
@@ -66,6 +109,8 @@ def parse_transcript_file(transcript_path: Path):
             continue
         start_text = match.group(1)
         text = match.group(2) or ""
+
+        # 如果时间戳行后没有紧跟文本，则合并后续非时间戳行作为文本
         if not text:
             i += 1
             buffer = []
@@ -83,33 +128,58 @@ def parse_transcript_file(transcript_path: Path):
             text = " ".join(buffer)
         else:
             i += 1
+
         try:
             start_sec = parse_timestamp(start_text)
         except ValueError:
             continue
+
         text = text.strip()
         if not text:
             continue
         entries.append((start_sec, text))
+
     entries.sort(key=lambda x: x[0])
     return entries
 
 
 def build_text_map(entries):
+    """
+    构建 {格式化时间戳: 文本} 映射表。
+    同时生成精确键（含毫秒）和粗略键（不含毫秒），以兼容 strip 前后的文件名。
+    """
     result = {}
     for start_sec, text in entries:
-        key = format_segment_timestamp(start_sec)
-        result[key] = text
+        # 精确键：HH-MM-SS.mmm（用于精确匹配）
+        key_exact = format_segment_timestamp(start_sec)
+        result[key_exact] = text
+        # 粗略键：HH-MM-SS（用于 strip 后的文件名匹配）
+        key_rough = format_segment_timestamp_no_ms(start_sec)
+        if key_rough not in result:
+            result[key_rough] = text
     return result
 
 
-def build_examples_from_split_folder(split_folder: Path, text_map, max_duration_sec: float = 60.0):
+def build_examples_from_audio_dir(
+    audio_dir: Path,
+    text_map: dict,
+    max_duration_sec: float = 60.0,
+):
+    """
+    遍历音频目录下所有 .wav 文件，与文本映射表匹配，生成样本列表。
+
+    匹配策略：
+    1. 精确匹配：用 HH-MM-SS.mmm 格式键查找
+    2. 粗略匹配：用 HH-MM-SS 格式键查找（适配 strip 后的文件名）
+    3. 模糊匹配：在 1 秒容差范围内找最近的文本
+    """
     examples = []
-    for wav_path in sorted(split_folder.glob("*.wav")):
+    for wav_path in sorted(audio_dir.rglob("*.wav")):
         filename = wav_path.name
         if not wav_path.exists() or wav_path.stat().st_size <= 0:
             continue
 
+        # 从文件名解析起止时间
         parsed = parse_segment_filename(filename)
         if parsed is None:
             continue
@@ -118,6 +188,7 @@ def build_examples_from_split_folder(split_folder: Path, text_map, max_duration_
         if duration_sec > max_duration_sec:
             continue
 
+        # 验证音频可读且时长 > 0
         try:
             audio_duration = librosa.get_duration(path=wav_path)
         except Exception:
@@ -125,20 +196,30 @@ def build_examples_from_split_folder(split_folder: Path, text_map, max_duration_
         if audio_duration <= 0:
             continue
 
-        key = format_segment_timestamp(start_sec)
-        text = text_map.get(key)
+        # 尝试匹配文本：先精确匹配，再粗略匹配，最后模糊匹配
+        key_exact = format_segment_timestamp(start_sec)
+        key_rough = format_segment_timestamp_no_ms(start_sec)
+
+        text = text_map.get(key_exact)
         if text is None:
-            # 兼容精度差异，寻找最接近的起始时间
+            text = text_map.get(key_rough)
+        if text is None:
+            # 模糊匹配：在 1 秒容差内找最近的文本
             nearest = None
             best_diff = 1.0
             for ts_key, ts_text in text_map.items():
-                diff = abs(parse_segment_timestamp(ts_key) - start_sec)
+                try:
+                    diff = abs(parse_segment_timestamp(ts_key) - start_sec)
+                except ValueError:
+                    continue
                 if diff < best_diff:
                     best_diff = diff
                     nearest = ts_text
             text = nearest
+
         if text is None:
             continue
+
         examples.append({
             "audio": wav_path.resolve().as_posix(),
             "text": text,
@@ -147,41 +228,20 @@ def build_examples_from_split_folder(split_folder: Path, text_map, max_duration_
     return examples
 
 
-def find_transcript_files(root: Path, transcript_name: str):
-    return sorted(root.rglob(transcript_name))
-
-
-def get_split_folder_for_transcript(
-    transcript_path: Path,
-    root: Path,
-    transcript_root_name: str,
-    split_root_name: str,
-):
-    """
-    root: /tcdata2/lyb_voice/finetune
-    文本路径：/tcdata2/lyb_voice/finetune/keep_folders
-    切分后音频路径：/tcdata2/lyb_voice/finetune/splited_wavs
-    """
-    
-    try:
-        relative = transcript_path.relative_to(root / transcript_root_name)
-        return root / split_root_name / relative.parent
-    except ValueError:
-        parts = transcript_path.parts
-        if transcript_root_name in parts:
-            idx = parts.index(transcript_root_name)
-            relative = Path(*parts[idx + 1:-1])
-            return root / split_root_name / relative
-        return root / split_root_name / transcript_path.parent.name
+def find_transcript_files(text_dir: Path, transcript_name: str = "transcript.txt"):
+    """递归查找文本目录下所有指定名称的 transcript 文件。"""
+    return sorted(text_dir.rglob(transcript_name))
 
 
 def split_dataset(examples, train_ratio: float, seed: int = 42):
+    """按比例随机划分训练集和验证集。"""
     random.Random(seed).shuffle(examples)
     split_at = int(len(examples) * train_ratio)
     return examples[:split_at], examples[split_at:]
 
 
 def write_jsonl(examples, out_path: Path):
+    """将样本列表写入 JSONL 文件。"""
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as f:
         for example in examples:
@@ -190,71 +250,87 @@ def write_jsonl(examples, out_path: Path):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="递归查找 transcript.txt，并根据对应切分后的 wav 生成训练/验证 JSONL。"
+        description="根据 transcript.txt 和切分后的 wav 生成训练/验证 JSONL。"
     )
-    parser.add_argument("--root", required=True, help="音频和 transcript 根目录，递归查找 transcript.txt")
-    parser.add_argument("--train-out", default="train.jsonl", help="输出训练集 JSONL 文件名")
-    parser.add_argument("--test-out", default="test.jsonl", help="输出验证集 JSONL 文件名")
-    parser.add_argument("--output-dir", default=".", help="输出 JSONL 文件目录")
-    parser.add_argument("--train-ratio", type=float, default=0.9, help="训练集比例，默认 0.9")
-    parser.add_argument("--seed", type=int, default=42, help="随机种子，默认 42")
-    parser.add_argument("--max-duration-sec", type=float, default=60.0, help="仅保留时长不超过该秒数的样本，默认 60")
+    parser.add_argument(
+        "--audio-dir", required=True,
+        help="切分后 wav 文件的根目录（递归搜索 *.wav）",
+    )
+    parser.add_argument(
+        "--text-dir", required=True,
+        help="transcript.txt 文件的根目录（递归搜索 transcript.txt）",
+    )
+    parser.add_argument(
+        "--train-out", default="train.jsonl",
+        help="输出训练集 JSONL 文件名，默认 train.jsonl",
+    )
+    parser.add_argument(
+        "--val-out", default="val.jsonl",
+        help="输出验证集 JSONL 文件名，默认 val.jsonl",
+    )
+    parser.add_argument(
+        "--output-dir", default=".",
+        help="输出 JSONL 文件的目录，默认当前目录",
+    )
+    parser.add_argument(
+        "--train-ratio", type=float, default=0.9,
+        help="训练集比例，默认 0.9",
+    )
+    parser.add_argument(
+        "--seed", type=int, default=42,
+        help="随机种子，默认 42",
+    )
+    parser.add_argument(
+        "--max-duration-sec", type=float, default=60.0,
+        help="仅保留时长不超过该秒数的样本，默认 60",
+    )
     args = parser.parse_args()
+
+    # 验证输入目录
+    audio_dir = Path(args.audio_dir)
+    text_dir = Path(args.text_dir)
+    if not audio_dir.is_dir():
+        raise FileNotFoundError(f"音频目录不存在: {audio_dir}")
+    if not text_dir.is_dir():
+        raise FileNotFoundError(f"文本目录不存在: {text_dir}")
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    transcripts = []
-    root = Path(args.root)
-    if not root.is_dir():
-        raise FileNotFoundError(f"root 目录不存在: {root}")
-    transcripts = find_transcript_files(root, "transcript.txt")
-
+    # 1. 收集所有 transcript.txt 并解析文本条目
+    transcripts = find_transcript_files(text_dir)
     if not transcripts:
-        raise FileNotFoundError("未找到任何 transcript.txt 文件。")
+        raise FileNotFoundError(f"在 {text_dir} 中未找到任何 transcript.txt 文件。")
 
-    all_examples = []
-    skipped_transcripts = 0
+    all_text_entries = []
     for transcript_path in transcripts:
-        print(f"处理 transcript: {transcript_path}")
-
-        split_folder = get_split_folder_for_transcript(
-            transcript_path,
-            root,
-            "keep_folders",
-            "splited_wavs",
-        )
-        if not split_folder or not split_folder.is_dir():
-            print(f"跳过: 未找到对应 split 文件夹: {split_folder}")
-            skipped_transcripts += 1
-            continue
-
+        print(f"读取 transcript: {transcript_path}")
         entries = parse_transcript_file(transcript_path)
-        if not entries:
-            print(f"跳过: 未解析到任何时间戳文本: {transcript_path}")
-            skipped_transcripts += 1
-            continue
+        all_text_entries.extend(entries)
 
-        text_map = build_text_map(entries)
-        examples = build_examples_from_split_folder(split_folder, text_map, args.max_duration_sec)
-        if not examples:
-            print(f"跳过: 未生成样本: {split_folder}")
-            skipped_transcripts += 1
-            continue
+    if not all_text_entries:
+        raise ValueError("未解析到任何时间戳文本条目，请检查 transcript 文件格式。")
 
-        all_examples.extend(examples)
+    # 2. 构建文本映射表并匹配音频
+    text_map = build_text_map(all_text_entries)
+    print(f"文本条目总数: {len(all_text_entries)}")
 
-    if not all_examples:
-        raise ValueError("未生成任何训练样本，请检查 transcript 和切分后 wav 的路径是否匹配。")
+    examples = build_examples_from_audio_dir(audio_dir, text_map, args.max_duration_sec)
+    if not examples:
+        raise ValueError(
+            "未生成任何训练样本，请检查音频文件名与 transcript 时间戳是否匹配。"
+        )
 
-    train_examples, test_examples = split_dataset(all_examples, args.train_ratio, args.seed)
+    # 3. 划分训练集/验证集并输出
+    train_examples, val_examples = split_dataset(examples, args.train_ratio, args.seed)
 
     write_jsonl(train_examples, output_dir / args.train_out)
-    write_jsonl(test_examples, output_dir / args.test_out)
+    write_jsonl(val_examples, output_dir / args.val_out)
 
     print(
-        f"生成完成: transcript={len(transcripts)} 跳过={skipped_transcripts} 总样本={len(all_examples)} "
-        f"train={len(train_examples)} test={len(test_examples)}"
+        f"生成完成: transcript 文件={len(transcripts)} "
+        f"总样本={len(examples)} "
+        f"train={len(train_examples)} val={len(val_examples)}"
     )
 
 
