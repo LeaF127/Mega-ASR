@@ -135,6 +135,7 @@ def main():
         default=None,
         help="推理模式: routing=按路由决策(默认使用--routing), base=强制只用基座模型, lora=强制只用LoRA",
     )
+    parser.add_argument("--lora_dir", default=None, help="LoRA dir, 如果不指定则使用 ckpt_dir/mega-asr-merged")
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--device_map", default=None)
     parser.add_argument("--gpu", default=None)
@@ -153,7 +154,7 @@ def main():
 
     model = MegaASR(
         model_path=ckpt_dir / "Qwen3-ASR-1.7B",
-        lora_dir=ckpt_dir / "mega-asr-merged",
+        lora_dir=args.lora_dir or ckpt_dir / "mega-asr-merged",
         router_checkpoint=ckpt_dir / "audio_quality_router/best_acc_model.safetensors",
         routing_enabled=args.routing,
         quality_threshold=args.threshold,
