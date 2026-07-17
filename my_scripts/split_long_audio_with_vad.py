@@ -123,36 +123,140 @@ def get_vad_segments(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  语音段贪心分组
+#  语音段均衡分组（DP 最小化最大片段时长）
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def group_segments_into_chunks(
     segments: List[Tuple[float, float]],
+    total_duration: float,
     max_duration: float,
 ) -> List[List[Tuple[float, float]]]:
-    """将 VAD 语音段贪心分组，使每组总时长 ≤ max_duration。"""
+    """均衡分组：先最小化分组数，再在相同分组数下使各段时长最均衡。
+    
+    策略（两阶段）：
+    1. 用 DP 求「恰好分为 k 组」时各组是否 ≤ max_duration
+    2. 从 k = ceil(total/max) 开始递增，找到第一个可行的 k
+    3. 对选定的 k，从所有可行方案中选「最大片段时长」最小的（即最均衡的）
+    
+    返回: 分组后的语音段列表，每组 List[(start, end)]
+    """
     if not segments:
         return []
+    n = len(segments)
+    INF = float("inf")
 
-    chunks: List[List[Tuple[float, float]]] = []
-    current_chunk = [segments[0]]
-    current_dur = segments[0][1] - segments[0][0]
+    # ── 预计算每组时长 ────────────────────────────────────────────────────────
+    # group_dur[l][r] = segments[l..r] 合成一组的时长
+    # 组边界 = 前后静默间隙的中点（或 0 / total_duration）
+    from functools import lru_cache
 
-    for seg in segments[1:]:
-        seg_dur = seg[1] - seg[0]
-        gap = seg[0] - current_chunk[-1][1]
+    @lru_cache(maxsize=None)
+    def group_dur(l: int, r: int) -> float:
+        start = 0.0 if l == 0 else (segments[l - 1][1] + segments[l][0]) / 2.0
+        end = total_duration if r == n - 1 else (segments[r][1] + segments[r + 1][0]) / 2.0
+        return end - start
 
-        if current_dur + gap + seg_dur > max_duration:
-            # 当前片段本身就很长，直接开新组
-            chunks.append(current_chunk)
-            current_chunk = [seg]
-            current_dur = seg_dur
+    # ── 求最少分组数 k_min ──────────────────────────────────────────────────
+    # 贪心求下界：每个 VAD 段不能拆开
+    k_min = 1
+    cur = 0.0
+    for i in range(n):
+        d = segments[i][1] - segments[i][0]
+        gap = 0.0 if i == 0 else segments[i][0] - segments[i - 1][1]
+        if cur + gap + d > max_duration and cur > 0:
+            k_min += 1
+            cur = d
         else:
-            current_chunk.append(seg)
-            current_dur += gap + seg_dur
+            cur += gap + d
+    # k_min 是贪心下界，实际最小可能 ≥ k_min
 
-    if current_chunk:
-        chunks.append(current_chunk)
+    # ── 从 k_min 开始尝试，找到第一个可行 k ────────────────────────────────
+    # dp[layer][i] = (min_max_dur, start_of_last_group)
+    #   layer 从 1 开始计数
+    #   dp[layer][i] = 将 segments[0..i] 分成 layer 组的最优方案
+    
+    best_k = -1
+    all_dp: List[List[Tuple[float, int]]] = []  # all_dp[layer-1] = dp for layer 组
+
+    for k in range(k_min, n + 1):
+        # 构建 k=1 的 dp
+        dp_1: List[Tuple[float, int]] = [(INF, -1)] * n
+        for i in range(n):
+            d = group_dur(0, i)
+            if d <= max_duration:
+                dp_1[i] = (d, 0)
+            else:
+                break
+
+        if k == 1:
+            if dp_1[n - 1][0] < INF:
+                best_k = 1
+                all_dp = [dp_1]
+            break
+
+        # 当前层数对应的 dp
+        dp_prev = dp_1  # 1 组
+        dp_layers = [dp_1]  # 存储所有层，用于回溯
+        feasible = False
+
+        for cur_k in range(2, k + 1):
+            dp_curr: List[Tuple[float, int]] = [(INF, -1)] * n
+            feasible = False
+            for i in range(cur_k - 1, n):
+                best_val = INF
+                best_j = -1
+                for j in range(i, cur_k - 2, -1):
+                    d = group_dur(j, i)
+                    if d > max_duration:
+                        continue
+                    if j == 0:
+                        curr_max = d
+                    else:
+                        prev_val, _ = dp_prev[j - 1]
+                        if prev_val >= INF:
+                            continue
+                        curr_max = d if d > prev_val else prev_val
+                    if curr_max < best_val:
+                        best_val = curr_max
+                        best_j = j
+                if best_val < INF:
+                    dp_curr[i] = (best_val, best_j)
+                    feasible = True
+
+            dp_layers.append(dp_curr)
+            if cur_k < k:
+                dp_prev = dp_curr
+
+        if feasible:
+            best_k = k
+            all_dp = dp_layers
+            break
+        # 如果 dp_1[n-1] 都不可行，直接失败
+        if k == k_min and dp_1[n - 1][0] >= INF:
+            break
+
+    if best_k < 0:
+        # 无法在 max_duration 约束下切分
+        logger = __import__("logging").getLogger(__name__)
+        logger.warning(
+            f"总时长 {total_duration:.1f}s 无法在 {max_duration}s 约束下切分，"
+            f"将按 VAD 原始片段返回"
+        )
+        return [segments]
+
+    # ── 回溯还原分组 ─────────────────────────────────────────────────────────
+    # all_dp[best_k-1][i] 是 segments[0..i] 分成 best_k 组的最优方案
+    chunks: List[List[Tuple[float, float]]] = []
+    i = n - 1
+    for layer in range(best_k - 1, -1, -1):
+        _, start = all_dp[layer][i]
+        # start 是当前组的起始段索引
+        if start < 0:
+            logger = __import__("logging").getLogger(__name__)
+            logger.warning(f"回溯异常: layer={layer}, i={i}, start={start}")
+            break
+        chunks.insert(0, segments[start:i + 1])
+        i = start - 1
 
     return chunks
 
@@ -385,8 +489,8 @@ def process_one_entry(
         tqdm.write(f"[{entry_idx}] 跳过 {os.path.basename(audio_path)}：VAD 未检测到语音")
         return [entry]
 
-    # ── 贪心分组 ─────────────────────────────────────────────────────────
-    chunks = group_segments_into_chunks(segments, args.max_segment_duration)
+    # ── DP 均衡分组 ─────────────────────────────────────────────────────
+    chunks = group_segments_into_chunks(segments, detected_dur, args.max_segment_duration)
 
     if len(chunks) <= 1:
         # VAD 分组后也只有一段，说明自然停顿不足以切分
